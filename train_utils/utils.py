@@ -153,7 +153,7 @@ def count_params(net):
     return count
 
 
-def save_checkpoint(path, name, model, optimizer=None):
+def save_checkpoint(path, name, model, optimizer=None, scheduler=None):
     ckpt_dir = '/scratch3/wan410/operator_learning_model/pino_ns2d/checkpoints/%s/' % path
     if not os.path.exists(ckpt_dir):
         os.makedirs(ckpt_dir)
@@ -162,14 +162,13 @@ def save_checkpoint(path, name, model, optimizer=None):
     except AttributeError:
         model_state_dict = model.state_dict()
 
-    if optimizer is not None:
-        optim_dict = optimizer.state_dict()
-    else:
-        optim_dict = 0.0
+    optim_dict = optimizer.state_dict() if optimizer is not None else None
+    sched_dict = scheduler.state_dict() if scheduler is not None else None
 
     torch.save({
         'model': model_state_dict,
-        'optim': optim_dict
+        'optim': optim_dict,
+        'scheduler': sched_dict
     }, ckpt_dir + name)
     print('Checkpoint is saved at %s' % ckpt_dir + name)
 

@@ -45,7 +45,11 @@ def train(model,
 
     model.train()
     myloss = LpLoss(size_average=True)
-    pbar = range(config['train']['epochs'])
+    total_epochs = config['train']['epochs']
+    save_interval = max(1, total_epochs // 100)
+    base_ckpt = config['train']['save_name']
+    base_prefix = base_ckpt.rsplit('.', 1)[0]
+    pbar = range(total_epochs)
     if use_tqdm:
         pbar = tqdm(pbar, dynamic_ncols=True, smoothing=0.05)
     zero = torch.zeros(1).to(rank)
@@ -113,11 +117,16 @@ def train(model,
                 )
             if wandb and log:
                 wandb.log(log_dict)
+            if (ep + 1) % save_interval == 0 or ep == total_epochs - 1:
+                ckpt_name = f'{base_prefix}-ep{ep + 1}.pt'
+                save_checkpoint(config['train']['save_dir'],
+                                ckpt_name,
+                                model, optimizer, scheduler)
 
     if rank == 0:
         save_checkpoint(config['train']['save_dir'],
                         config['train']['save_name'],
-                        model, optimizer)
+                        model, optimizer, scheduler)
         if wandb and log:
             run.finish()
 
@@ -159,7 +168,11 @@ def mixed_train(model,              # model of neural operator
 
     model.train()
     myloss = LpLoss(size_average=True)
-    pbar = range(config['train']['epochs'])
+    total_epochs = config['train']['epochs']
+    save_interval = max(1, total_epochs // 100)
+    base_ckpt = config['train']['save_name']
+    base_prefix = base_ckpt.rsplit('.', 1)[0]
+    pbar = range(total_epochs)
     if use_tqdm:
         pbar = tqdm(pbar, dynamic_ncols=True, smoothing=0.05)
     zero = torch.zeros(1).to(device)
@@ -248,10 +261,15 @@ def mixed_train(model,              # model of neural operator
                     'Time cost': t2 - t1
                 }
             )
+        if (ep + 1) % save_interval == 0:
+            ckpt_name = f'{base_prefix}-ep{ep + 1}.pt'
+            save_checkpoint(config['train']['save_dir'],
+                            ckpt_name,
+                            model, optimizer, scheduler)
 
     save_checkpoint(config['train']['save_dir'],
                     config['train']['save_name'],
-                    model, optimizer)
+                    model, optimizer, scheduler)
     if wandb and log:
         run.finish()
 
@@ -356,8 +374,6 @@ def progressive_train(model,
 
     save_checkpoint(config['train']['save_dir'],
                     config['train']['save_name'],
-                    model, optimizer)
+                    model, optimizer, scheduler)
     if wandb and log:
         run.finish()
-
-
