@@ -154,7 +154,7 @@ def count_params(net):
 
 
 def save_checkpoint(path, name, model, optimizer=None):
-    ckpt_dir = 'checkpoints/%s/' % path
+    ckpt_dir = '/scratch3/wan410/operator_learning_model/pino_ns2d/checkpoints/%s/' % path
     if not os.path.exists(ckpt_dir):
         os.makedirs(ckpt_dir)
     try:
