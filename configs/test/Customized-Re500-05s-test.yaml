@@ -1,0 +1,29 @@
+data:
+  datapath: '/scratch3/wan410/operator_learning_data/pino_ns2d/NS_Re500_s256_T100_test.npy'
+  Re: 500
+  total_num: 100
+  offset: 0
+  n_sample: 20
+  time_interval: 0.5
+  nx: 256
+  nt: 128
+  sub: 4
+  sub_t: 1
+  shuffle: False
+
+model:
+  layers: [64, 64, 64, 64, 64]
+  modes1: [8, 8, 8, 8]
+  modes2: [8, 8, 8, 8]
+  modes3: [8, 8, 8, 8]
+  fc_dim: 128
+
+test:
+  batchsize: 1
+  ckpt: '/scratch3/wan410/operator_learning_model/pino_ns2d/checkpoints/Re500-FNO-100/FNO-Re500-1s-100-ep4000.pt'
+
+log:
+  project: 'PINO-None'
+  group: 'eval'
+
+
