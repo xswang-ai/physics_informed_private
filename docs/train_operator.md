@@ -2,6 +2,23 @@
 
 This note walks through the minimal steps to launch Fourier Neural Operator (FNO) training on Navier–Stokes data that follow the `NS3DDataset` format, using the helper script `train_operator.py`.
 
+## Download the dataset:
+(you need to export username and API key to the global variable)
+
+if [ ! -f "$HOME/.kaggle/kaggle.json" ]; then
+  mkdir -p "$HOME/.kaggle"
+  chmod 700 "$HOME/.kaggle"
+  cat > "$HOME/.kaggle/kaggle.json" <<'EOF'
+{"username":"xuesongwang","key":"KGAT_1752b9794e7400ae4e16595d77314c95"}
+
+or 
+
+export KAGGLE_USERNAME=<YOUR_USERNAME>
+export KAGGLE_KEY=<YOUR_KEY>
+
+kaggle datasets download -d ameyvarhade/physics-informed-neural-operators -p /scratch3/wan410/operator_learning_data/pino_ns2d  --unzip
+
+
 ## What the script expects
 - Input data: one or two `.npy` files shaped `(num_samples, Nt, Nx, Ny)`; this is the same layout produced/consumed by `train_utils.datasets.NS3DDataset`. `datapath`/`datapath2` point to these files.
 - Resolution controls: `nx`/`nt` are the raw spatial/time sizes; `sub` and `sub_t` downsample them; `time_interval` lets you train on 0.5 s windows via the built‑in `extract` logic.
