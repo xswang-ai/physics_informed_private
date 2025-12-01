@@ -1,5 +1,5 @@
 data:
-  datapath: '/scratch3/wan410/operator_learning_data/pino_ns2d/NS-T4000.npy'
+  datapath: '/scratch3/wan410/operator_learning_data/pino_ns2d/NS_fft_Re500_T4000.npy'
   Re: 500
   total_num: 4000
   offset: 0
