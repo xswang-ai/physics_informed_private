@@ -150,7 +150,7 @@ def mixed_train(model,              # model of neural operator
     forcing_1 = get_forcing(S1).to(device)
     forcing_2 = get_forcing(S2).to(device)
     # training settings
-    batch_size = config['train']['batchsize']
+    # batch_size = config['train']['batchsize']
     ic_weight = config['train']['ic_loss']
     f_weight = config['train']['f_loss']
     xy_weight = config['train']['xy_loss']
@@ -174,6 +174,7 @@ def mixed_train(model,              # model of neural operator
         err_eqn = 0.0
         # train with data
         for _ in range(num_data_iter):
+            batch_size = x.shape[0]
             x, y = next(train_loader)
             x, y = x.to(device), y.to(device)
             optimizer.zero_grad()
