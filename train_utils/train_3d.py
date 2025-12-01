@@ -174,9 +174,9 @@ def mixed_train(model,              # model of neural operator
         err_eqn = 0.0
         # train with data
         for _ in range(num_data_iter):
-            batch_size = x.shape[0]
             x, y = next(train_loader)
             x, y = x.to(device), y.to(device)
+            batch_size = x.shape[0]
             optimizer.zero_grad()
             x_in = F.pad(x, (0, 0, 0, 5), "constant", 0)
             out = model(x_in).reshape(batch_size, S1, S1, T1 + 5)
