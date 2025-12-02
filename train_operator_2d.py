@@ -155,12 +155,15 @@ def train_3d(args, config):
                                                train=True)
             S_data, T_data = loader.S, loader.T
         else:
+            n_sample = data_config.get('n_sample', data_config.get('n_samples', data_config['total_num']))
+            offset = data_config.get('offset', 0)
             full_dataset = NSLoader2D(datapath1=data_config['datapath'],
                                       nx=data_config['nx'], nt=data_config['nt'],
                                       sub=data_config['sub'], sub_t=data_config['sub_t'],
                                       N=data_config['total_num'],
-                                      t_interval=data_config['time_interval'])
-            print("full_dataset shape: ", len(full_dataset))
+                                      t_interval=data_config['time_interval'],
+                                      n_samples=n_sample,
+                                      offset=offset)
             S_data, T_data = full_dataset.S, 1
     if args.test_ratio > 0:
         test_size = max(1, int(len(full_dataset) * args.test_ratio))

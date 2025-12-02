@@ -596,7 +596,8 @@ class NSLoader2D(Dataset):
     def __init__(self, datapath1,
                  nx, nt,
                  datapath2=None, sub=1, sub_t=1,
-                 N=100, t_interval=1.0):
+                 N=None, t_interval=1.0,
+                 n_samples=None, offset=0):
         '''
         Load data from npy and reshape to (N, X, Y, T)
         Args:
@@ -608,6 +609,8 @@ class NSLoader2D(Dataset):
             sub_t:
             N:
             t_interval:
+            n_samples: number of trajectories to keep (defaults to N)
+            offset: starting index for slicing
         '''
         self.S = nx // sub
         self.T = int(nt * t_interval) // sub_t + 1
@@ -628,6 +631,17 @@ class NSLoader2D(Dataset):
             self.data = torch.cat((part1, part2), dim=0)
         else:
             self.data = part1
+        total = self.data.shape[0]
+        if offset >= total:
+            raise ValueError(f'Offset {offset} exceeds dataset size {total}.')
+        if n_samples is None:
+            if N is None:
+                n_samples = total
+            else:
+                n_samples = N
+        start = max(0, offset)
+        end = total if n_samples is None else min(total, start + n_samples)
+        self.data = self.data[start:end]
         self.num_samples = self.data.shape[0]
         self.max_time_index = self.data.shape[-1] - 1
 
