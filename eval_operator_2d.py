@@ -112,11 +112,13 @@ def main():
                       act=model_cfg['act'],
                       pad_ratio=model_cfg.get('pad_ratio', [0., 0.])).to(device)
 
-    if 'ckpt' in config.get('test', {}):
-        ckpt_path = config['test']['ckpt']
+    ckpt_path = config.get('test', {}).get('ckpt')
+    if ckpt_path:
         ckpt = torch.load(ckpt_path, map_location=device)
         model.load_state_dict(ckpt['model'])
         print(f'Weights loaded from {ckpt_path}')
+    else:
+        print('No checkpoint specified in config.test.ckpt; evaluating with randomly initialized weights.')
 
     print(f'Evaluating on {sequences.shape[0]} samples at resolution {S}x{S} for {T} steps.')
     l2, example = autoregressive_eval(model, sequences, device)
@@ -157,10 +159,10 @@ def main():
         energy_truth = []
         energy_pred = []
         for t_idx in range(T):
-            scalars_true = compute_scalar_diagnostics(truth[..., t_idx].numpy(), Lx=2 * math.pi, Ly=2 * math.pi)
-            scalars_pred = compute_scalar_diagnostics(pred[..., t_idx].numpy(), Lx=2 * math.pi, Ly=2 * math.pi)
-            energy_truth.append(scalars_true['energy'])
-            energy_pred.append(scalars_pred['energy'])
+            field_true = truth[..., t_idx].numpy()
+            field_pred = pred[..., t_idx].numpy()
+            energy_truth.append(0.5 * np.mean(field_true ** 2))
+            energy_pred.append(0.5 * np.mean(field_pred ** 2))
         fig_e, ax_e = plt.subplots(1, 1, figsize=(6, 4))
         ax_e.plot(times, energy_truth, label='Truth')
         ax_e.plot(times, energy_pred, '--', label='Prediction')

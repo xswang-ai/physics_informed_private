@@ -11,7 +11,7 @@ from train_utils.datasets import NSLoader, online_loader, DarcyFlow, DarcyCombo,
 from train_utils.train_3d import mixed_train
 from train_utils.train_2d import train_2d_operator
 from train_utils.losses import LpLoss
-from train_utils.utils import get_grid3d, torch2dgrid
+from train_utils.utils import get_grid3d, torch2dgrid, save_checkpoint
 from models import FNO3d, FNO2d
 from models.hfs import ResUNet
 from tqdm import tqdm
@@ -243,6 +243,9 @@ def train_3d(args, config):
                          config,
                          device,
                          grid)
+        save_checkpoint(config['train']['save_dir'],
+                        config['train']['save_name'],
+                        model, optimizer, scheduler)
         if test_loader is not None:
             test_l2 = evaluate_step_ahead(model, test_loader, device, grid)
             print(f'Random test split relative L2: {test_l2:.6f}')
