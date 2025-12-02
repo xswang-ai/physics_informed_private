@@ -84,6 +84,13 @@ def train_step_ahead(model, train_loader, optimizer, scheduler, config, device, 
         avg = running / max(1, batches)
         print(f'Epoch {ep + 1}/{epochs}, train L2: {avg:.6f}')
 
+        if use_tqdm:
+            pbar.set_description(
+                (
+                    f'Train L2: {avg:.6f}'
+                )
+            )
+
 
 def build_synthetic_dataset(data_config, n_samples, step_ahead=False):
     """Create a random dataset that mimics NSLoader/NSLoader2D output."""
