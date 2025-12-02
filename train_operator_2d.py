@@ -153,6 +153,7 @@ def train_3d(args, config):
                                       sub=data_config['sub'], sub_t=data_config['sub_t'],
                                       N=data_config['total_num'],
                                       t_interval=data_config['time_interval'])
+            print("full_dataset shape: ", len(full_dataset))
             S_data, T_data = full_dataset.S, 1
     if args.test_ratio > 0:
         test_size = max(1, int(len(full_dataset) * args.test_ratio))
