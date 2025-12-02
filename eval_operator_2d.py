@@ -9,7 +9,11 @@ from models.hfs import ResUNet
 from train_utils.losses import LpLoss
 from train_utils.utils import get_grid3d, torch2dgrid
 from train_utils.datasets import NSLoader2D
+from train_utils.compute_diagnostics import compute_scalar_diagnostics
 
+import os
+import math
+import matplotlib.pyplot as plt
 
 def load_ns_sequences(data_config):
     """Load full (N, X, Y, T) sequences for evaluation."""
@@ -56,6 +60,7 @@ def autoregressive_eval(model, sequences, device):
     grid = torch2dgrid(S, S).to(device).unsqueeze(0)  # 1 x S x S x 2
     total = 0.0
     batches = 0
+    example = {'truth': None, 'pred': None}
     loader = DataLoader(TensorDataset(sequences), batch_size=1, shuffle=False)
     with torch.no_grad():
         for (seq,) in loader:
@@ -74,7 +79,10 @@ def autoregressive_eval(model, sequences, device):
             pred_seq = torch.stack(preds, dim=-1)
             total += lploss(pred_seq.view(1, S, S, T), seq.view(1, S, S, T)).item()
             batches += 1
-    return total / max(1, batches)
+            if example['truth'] is None:
+                example['truth'] = seq.detach().cpu()
+                example['pred'] = pred_seq.detach().cpu()
+    return total / max(1, batches), example
 
 
 def main():
@@ -111,8 +119,58 @@ def main():
         print(f'Weights loaded from {ckpt_path}')
 
     print(f'Evaluating on {sequences.shape[0]} samples at resolution {S}x{S} for {T} steps.')
-    l2 = autoregressive_eval(model, sequences, device)
+    l2, example = autoregressive_eval(model, sequences, device)
     print(f'Relative L2 over rollout: {l2:.6f}')
+
+    # Save prediction and energy plots for the first example
+    if example['truth'] is not None:
+        plot_dir = config.get('log', {}).get('plot_dir', '.')
+        pred_dir = os.path.join(plot_dir, 'saved_plots', 'predictions')
+        energy_dir = os.path.join(plot_dir, 'saved_plots', 'energy')
+        os.makedirs(pred_dir, exist_ok=True)
+        os.makedirs(energy_dir, exist_ok=True)
+
+        truth = example['truth'][0]  # (S, S, T)
+        pred = example['pred'][0]
+        time_indices = [0, max(0, T // 2), T - 1]
+        for t_raw in time_indices:
+            pred_frame = pred[..., t_raw]
+            truth_frame = truth[..., t_raw]
+            err_frame = pred_frame - truth_frame
+
+            fig, axes = plt.subplots(1, 3, figsize=(12, 4))
+            titles = ['Truth', 'Prediction', 'Error']
+            data_to_plot = [truth_frame, pred_frame, err_frame]
+            for ax, title, data in zip(axes, titles, data_to_plot):
+                im = ax.imshow(data.numpy(), cmap='RdBu_r', origin='lower')
+                ax.set_title(f'{title} (T={t_raw})')
+                ax.set_xticks([])
+                ax.set_yticks([])
+                fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+            plt.tight_layout()
+            pred_plot_path = os.path.join(pred_dir, f'ns_prediction_t{t_raw}.png')
+            fig.savefig(pred_plot_path, dpi=150, bbox_inches='tight')
+            plt.close(fig)
+
+        # Energy time series
+        times = np.arange(T)
+        energy_truth = []
+        energy_pred = []
+        for t_idx in range(T):
+            scalars_true = compute_scalar_diagnostics(truth[..., t_idx].numpy(), Lx=2 * math.pi, Ly=2 * math.pi)
+            scalars_pred = compute_scalar_diagnostics(pred[..., t_idx].numpy(), Lx=2 * math.pi, Ly=2 * math.pi)
+            energy_truth.append(scalars_true['energy'])
+            energy_pred.append(scalars_pred['energy'])
+        fig_e, ax_e = plt.subplots(1, 1, figsize=(6, 4))
+        ax_e.plot(times, energy_truth, label='Truth')
+        ax_e.plot(times, energy_pred, '--', label='Prediction')
+        ax_e.set_xlabel('Time step')
+        ax_e.set_ylabel('Energy')
+        ax_e.set_title('Energy over rollout')
+        ax_e.legend()
+        ax_e.grid(True, alpha=0.3)
+        fig_e.savefig(os.path.join(energy_dir, 'ns_energy.png'), dpi=150, bbox_inches='tight')
+        plt.close(fig_e)
 
 
 if __name__ == '__main__':
