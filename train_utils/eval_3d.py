@@ -157,7 +157,7 @@ def eval_ns(model,  # model
                 Ek_pred_np = Ek_pred.cpu().numpy()
                 Ek_true_np = Ek_true.cpu().numpy()
 
-                valid_mask = k_np > 0
+                valid_mask = range(1, 33)
                 fig_spec, ax_spec = plt.subplots(1, 1, figsize=(6, 4))
                 ax_spec.loglog(k_np[valid_mask], Ek_true_np[valid_mask], label='Truth', linewidth=1)
                 ax_spec.loglog(k_np[valid_mask], Ek_pred_np[valid_mask], '--', label='Prediction', linewidth=1)
