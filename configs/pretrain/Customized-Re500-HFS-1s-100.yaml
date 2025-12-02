@@ -19,7 +19,7 @@ model:
   target_params: medium
 
 train:
-  batchsize: 2
+  batchsize: 100
   epochs: 100_001
   milestones: [20_000, 40_000, 60_000, 80_000]
   base_lr: 0.001
