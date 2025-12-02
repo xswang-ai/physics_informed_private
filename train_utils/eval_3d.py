@@ -92,8 +92,8 @@ def eval_ns(model,  # model
         plot_dir = config.get('log', {}).get('plot_dir', '.')
         os.makedirs(plot_dir, exist_ok=True)
 
-        pred_dir = os.path.join(plot_dir, 'predictions')
-        spec_dir = os.path.join(plot_dir, 'spectral_energy')
+        pred_dir = os.path.join(plot_dir, 'saved_plots','predictions')
+        spec_dir = os.path.join(plot_dir, 'saved_plots','spectral_energy')
         os.makedirs(pred_dir, exist_ok=True)
         os.makedirs(spec_dir, exist_ok=True)
 
