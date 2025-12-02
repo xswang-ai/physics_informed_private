@@ -13,6 +13,7 @@ from train_utils.train_2d import train_2d_operator
 from train_utils.losses import LpLoss
 from train_utils.utils import get_grid3d, torch2dgrid
 from models import FNO3d, FNO2d
+from models.hfs import ResUNet
 from tqdm import tqdm
 
 
@@ -48,7 +49,11 @@ def evaluate_step_ahead(model, test_loader, device, grid):
             x, y = x.to(device), y.to(device)
             batch = x.shape[0]
             x_in = torch.cat((x.unsqueeze(-1), grid.expand(batch, -1, -1, -1)), dim=-1)
-            pred = model(x_in).squeeze(-1)
+            pred = model(x_in)
+            if pred.dim() == 5:
+                pred = pred.squeeze(-2)
+            if pred.dim() == 4:
+                pred = pred.squeeze(-1)
             total += lploss(pred, y).item()
             batches += 1
     if batches == 0:
@@ -73,7 +78,11 @@ def train_step_ahead(model, train_loader, optimizer, scheduler, config, device, 
             x, y = x.to(device), y.to(device)
             batch = x.shape[0]
             x_in = torch.cat((x.unsqueeze(-1), grid.expand(batch, -1, -1, -1)), dim=-1)
-            pred = model(x_in).squeeze(-1)
+            pred = model(x_in)
+            if pred.dim() == 5:
+                pred = pred.squeeze(-2)
+            if pred.dim() == 4:
+                pred = pred.squeeze(-1)
             loss = lploss(pred, y)
             optimizer.zero_grad()
             loss.backward()
@@ -197,18 +206,21 @@ def train_3d(args, config):
                                  batchsize=config['train']['batchsize'])
     # create model
     print(device)
-    # model = FNO3d(modes1=config['model']['modes1'],
-    #               modes2=config['model']['modes2'],
-    #               modes3=config['model']['modes3'],
-    #               fc_dim=config['model']['fc_dim'],
-    #               layers=config['model']['layers'], 
-    #               act=config['model']['act']).to(device)
-    model = FNO2d(modes1=config['model']['modes1'],
-                  modes2=config['model']['modes2'],
-                  fc_dim=config['model']['fc_dim'],
-                  layers=config['model']['layers'],
-                  act=config['model']['act'], 
-                  ).to(device)
+    model_cfg = config['model']
+    model_name = model_cfg.get('name', 'fno2d').lower()
+    if model_name == 'hfs':
+        model = ResUNet(in_c=3,
+                        out_c=1,
+                        target_params=model_cfg.get('target_params', 'medium'),
+                        device=device).to(device)
+    else:
+        model = FNO2d(modes1=model_cfg['modes1'],
+                      modes2=model_cfg['modes2'],
+                      fc_dim=model_cfg['fc_dim'],
+                      layers=model_cfg['layers'],
+                      act=model_cfg['act'],
+                    #   pad_ratio=model_cfg.get('pad_ratio', [0., 0.])
+                      ).to(device)
     print('model structure: ', model)
     # Load from checkpoint
     if 'ckpt' in config['train']:
@@ -262,12 +274,20 @@ def train_2d(args, config):
                         offset=data_config['offset'], num=data_config['n_sample'])
     
     train_loader = DataLoader(dataset, batch_size=config['train']['batchsize'], shuffle=True)
-    model = FNO2d(modes1=config['model']['modes1'],
-                  modes2=config['model']['modes2'],
-                  fc_dim=config['model']['fc_dim'],
-                  layers=config['model']['layers'],
-                  act=config['model']['act'], 
-                  pad_ratio=config['model']['pad_ratio']).to(device)
+    model_cfg = config['model']
+    model_name = model_cfg.get('name', 'fno2d').lower()
+    if model_name == 'hfs':
+        model = ResUNet(in_c=3,
+                        out_c=1,
+                        target_params=model_cfg.get('target_params', 'medium'),
+                        device=device).to(device)
+    else:
+        model = FNO2d(modes1=model_cfg['modes1'],
+                      modes2=model_cfg['modes2'],
+                      fc_dim=model_cfg['fc_dim'],
+                      layers=model_cfg['layers'],
+                      act=model_cfg['act'], 
+                      pad_ratio=model_cfg.get('pad_ratio', [0., 0.])).to(device)
     # Load from checkpoint
     if 'ckpt' in config['train']:
         ckpt_path = config['train']['ckpt']
