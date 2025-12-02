@@ -144,7 +144,7 @@ def main():
 
         truth = example['truth'][0]  # (S, S, T)
         pred = example['pred'][0]
-        time_indices = [0, max(0, T // 2), T - 1]
+        time_indices = range(0, T, 5)
         for t_raw in time_indices:
             pred_frame = pred[..., t_raw]
             truth_frame = truth[..., t_raw]
@@ -163,26 +163,6 @@ def main():
             pred_plot_path = os.path.join(pred_dir, f'ns_prediction_t{t_raw}.png')
             fig.savefig(pred_plot_path, dpi=150, bbox_inches='tight')
             plt.close(fig)
-
-        # Energy time series
-        times = np.arange(T)
-        energy_truth = []
-        energy_pred = []
-        for t_idx in range(T):
-            field_true = truth[..., t_idx].numpy()
-            field_pred = pred[..., t_idx].numpy()
-            energy_truth.append(0.5 * np.mean(field_true ** 2))
-            energy_pred.append(0.5 * np.mean(field_pred ** 2))
-        fig_e, ax_e = plt.subplots(1, 1, figsize=(6, 4))
-        ax_e.plot(times, energy_truth, label='Truth')
-        ax_e.plot(times, energy_pred, '--', label='Prediction')
-        ax_e.set_xlabel('Time step')
-        ax_e.set_ylabel('Energy')
-        ax_e.set_title('Energy over rollout')
-        ax_e.legend()
-        ax_e.grid(True, alpha=0.3)
-        fig_e.savefig(os.path.join(energy_dir, 'ns_energy.png'), dpi=150, bbox_inches='tight')
-        plt.close(fig_e)
 
 
 if __name__ == '__main__':
