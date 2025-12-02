@@ -113,8 +113,9 @@ def main():
                       pad_ratio=model_cfg.get('pad_ratio', [0., 0.])).to(device)
 
     ckpt_path = config.get('test', {}).get('ckpt')
-    if ckpt_path:
-        ckpt = torch.load(ckpt_path, map_location=device)
+    ckpt_dir = '/scratch3/wan410/operator_learning_model/pino_ns2d/checkpoints/%s/' % ckpt_path
+    if os.path.exists(ckpt_dir):
+        ckpt = torch.load(ckpt_dir, map_location=device)
         model.load_state_dict(ckpt['model'])
         print(f'Weights loaded from {ckpt_path}')
     else:
