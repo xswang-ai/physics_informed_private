@@ -121,6 +121,7 @@ def train_3d(args, config):
                   fc_dim=config['model']['fc_dim'],
                   layers=config['model']['layers'], 
                   act=config['model']['act']).to(device)
+    print('model structure: ', model)
     # Load from checkpoint
     if 'ckpt' in config['train']:
         ckpt_path = config['train']['ckpt']

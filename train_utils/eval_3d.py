@@ -92,25 +92,10 @@ def eval_ns(model,  # model
         plot_dir = config.get('log', {}).get('plot_dir', '.')
         os.makedirs(plot_dir, exist_ok=True)
 
-        # Use the last predicted time slice for quick visualization
-        t_idx = example_pred.shape[-1] - 1
-        pred_frame = example_pred[..., t_idx]
-        truth_frame = example_truth[..., t_idx]
-        err_frame = pred_frame - truth_frame
-
-        fig, axes = plt.subplots(1, 3, figsize=(12, 4))
-        titles = ['Truth', 'Prediction', 'Error']
-        data_to_plot = [truth_frame, pred_frame, err_frame]
-        for ax, title, data in zip(axes, titles, data_to_plot):
-            im = ax.imshow(data.numpy(), cmap='RdBu_r', origin='lower')
-            ax.set_title(title)
-            ax.set_xticks([])
-            ax.set_yticks([])
-            fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
-        plt.tight_layout()
-        pred_plot_path = os.path.join(plot_dir, 'ns_prediction.png')
-        fig.savefig(pred_plot_path, dpi=150, bbox_inches='tight')
-        plt.close(fig)
+        pred_dir = os.path.join(plot_dir, 'predictions')
+        spec_dir = os.path.join(plot_dir, 'spectral_energy')
+        os.makedirs(pred_dir, exist_ok=True)
+        os.makedirs(spec_dir, exist_ok=True)
 
         def _velocity_from_vorticity(w_slice: torch.Tensor):
             """Compute velocity field from vorticity for spectrum calculation."""
@@ -135,31 +120,57 @@ def eval_ns(model,  # model
             uy = torch.fft.ifft2(uy_hat).real
             return ux, uy
 
-        try:
-            ux_pred, uy_pred = _velocity_from_vorticity(pred_frame.float())
-            ux_true, uy_true = _velocity_from_vorticity(truth_frame.float())
-            k_bins, Ek_pred = compute_spectra_torch(ux_pred, uy_pred, 2 * math.pi, 2 * math.pi)
-            _, Ek_true = compute_spectra_torch(ux_true, uy_true, 2 * math.pi, 2 * math.pi)
+        time_indices = torch.arange(0, example_pred.shape[-1], 5)
+        for t_raw in time_indices:
+            if t_raw < 0:
+                t_idx = example_pred.shape[-1] + t_raw
+            else:
+                t_idx = t_raw
+            if t_idx < 0 or t_idx >= example_pred.shape[-1]:
+                continue
 
-            k_np = k_bins.cpu().numpy()
-            Ek_pred_np = Ek_pred.cpu().numpy()
-            Ek_true_np = Ek_true.cpu().numpy()
+            pred_frame = example_pred[..., t_idx]
+            truth_frame = example_truth[..., t_idx]
+            err_frame = pred_frame - truth_frame
 
-            # valid_mask = k_np > 0
-            valid_mask = range(1, 33)
-            fig_spec, ax_spec = plt.subplots(1, 1, figsize=(6, 4))
-            ax_spec.loglog(k_np[valid_mask], Ek_true_np[valid_mask], label='Truth', linewidth=1)
-            ax_spec.loglog(k_np[valid_mask], Ek_pred_np[valid_mask], '--', label='Prediction', linewidth=1)
-            ax_spec.set_xlabel('Wavenumber k')
-            ax_spec.set_ylabel('Energy E(k)')
-            ax_spec.set_title('Spectral Energy Comparison')
-            ax_spec.grid(True, which='both', alpha=0.3)
-            ax_spec.legend()
-            spec_plot_path = os.path.join(plot_dir, 'ns_spectral_energy.png')
-            fig_spec.savefig(spec_plot_path, dpi=150, bbox_inches='tight')
-            plt.close(fig_spec)
-        except Exception as exc:  # noqa: BLE001
-            print(f'Warning: failed to create spectral energy plot: {exc}')
+            fig, axes = plt.subplots(1, 3, figsize=(12, 4))
+            titles = ['Truth', 'Prediction', 'Error']
+            data_to_plot = [truth_frame, pred_frame, err_frame]
+            for ax, title, data in zip(axes, titles, data_to_plot):
+                im = ax.imshow(data.numpy(), cmap='RdBu_r', origin='lower')
+                ax.set_title(f'{title} (T={t_raw})')
+                ax.set_xticks([])
+                ax.set_yticks([])
+                fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+            plt.tight_layout()
+            pred_plot_path = os.path.join(pred_dir, f'ns_prediction_t{t_raw}.png')
+            fig.savefig(pred_plot_path, dpi=150, bbox_inches='tight')
+            plt.close(fig)
+
+            try:
+                ux_pred, uy_pred = _velocity_from_vorticity(pred_frame.float())
+                ux_true, uy_true = _velocity_from_vorticity(truth_frame.float())
+                k_bins, Ek_pred = compute_spectra_torch(ux_pred, uy_pred, 2 * math.pi, 2 * math.pi)
+                _, Ek_true = compute_spectra_torch(ux_true, uy_true, 2 * math.pi, 2 * math.pi)
+
+                k_np = k_bins.cpu().numpy()
+                Ek_pred_np = Ek_pred.cpu().numpy()
+                Ek_true_np = Ek_true.cpu().numpy()
+
+                valid_mask = k_np > 0
+                fig_spec, ax_spec = plt.subplots(1, 1, figsize=(6, 4))
+                ax_spec.loglog(k_np[valid_mask], Ek_true_np[valid_mask], label='Truth', linewidth=1)
+                ax_spec.loglog(k_np[valid_mask], Ek_pred_np[valid_mask], '--', label='Prediction', linewidth=1)
+                ax_spec.set_xlabel('Wavenumber k')
+                ax_spec.set_ylabel('Energy E(k)')
+                ax_spec.set_title(f'Spectral Energy Comparison (T={t_raw})')
+                ax_spec.grid(True, which='both', alpha=0.3)
+                ax_spec.legend()
+                spec_plot_path = os.path.join(spec_dir, f'ns_spectral_energy_t{t_raw}.png')
+                fig_spec.savefig(spec_plot_path, dpi=150, bbox_inches='tight')
+                plt.close(fig_spec)
+            except Exception as exc:  # noqa: BLE001
+                print(f'Warning: failed to create spectral energy plot at T={t_raw}: {exc}')
 
     if device == 0:
         if wandb and log:
