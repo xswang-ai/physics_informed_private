@@ -112,14 +112,20 @@ def main():
                       act=model_cfg['act'],
                       pad_ratio=model_cfg.get('pad_ratio', [0., 0.])).to(device)
 
-    ckpt_path = config.get('test', {}).get('ckpt')
-    ckpt_dir = '/scratch3/wan410/operator_learning_model/pino_ns2d/checkpoints/%s/' % ckpt_path
-    if os.path.exists(ckpt_dir):
-        ckpt = torch.load(ckpt_dir, map_location=device)
+    base_ckpt_root = '/scratch3/wan410/operator_learning_model/pino_ns2d/checkpoints'
+    train_cfg = config.get('train', {})
+    default_ckpt_path = os.path.join(
+        base_ckpt_root,
+        train_cfg.get('save_dir', 'default'),
+        train_cfg.get('save_name', 'model.pt')
+    )
+    ckpt_path = config.get('test', {}).get('ckpt', default_ckpt_path)
+    if os.path.exists(ckpt_path):
+        ckpt = torch.load(ckpt_path, map_location=device)
         model.load_state_dict(ckpt['model'])
         print(f'Weights loaded from {ckpt_path}')
     else:
-        print('No checkpoint specified in config.test.ckpt; evaluating with randomly initialized weights.')
+        print(f'Checkpoint not found at {ckpt_path}; evaluating with randomly initialized weights.')
 
     print(f'Evaluating on {sequences.shape[0]} samples at resolution {S}x{S} for {T} steps.')
     l2, example = autoregressive_eval(model, sequences, device)
@@ -127,7 +133,10 @@ def main():
 
     # Save prediction and energy plots for the first example
     if example['truth'] is not None:
-        plot_dir = config.get('log', {}).get('plot_dir', '.')
+        plot_dir = config.get('log', {}).get(
+            'plot_dir',
+            os.path.join(base_ckpt_root, train_cfg.get('save_dir', 'default'), 'eval_plots')
+        )
         pred_dir = os.path.join(plot_dir, 'saved_plots', 'predictions')
         energy_dir = os.path.join(plot_dir, 'saved_plots', 'energy')
         os.makedirs(pred_dir, exist_ok=True)
