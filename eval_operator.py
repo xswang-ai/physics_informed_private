@@ -29,7 +29,7 @@ def test_3d(config):
                   modes3=config['model']['modes3'],
                   fc_dim=config['model']['fc_dim'],
                   layers=config['model']['layers']).to(device)
-
+    print("total number of parameters: ", sum(p.numel() for p in model.parameters()))
     if 'ckpt' in config['test']:
         ckpt_path = config['test']['ckpt']
         ckpt = torch.load(ckpt_path)
