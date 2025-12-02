@@ -13,6 +13,7 @@ from train_utils.train_2d import train_2d_operator
 from train_utils.losses import LpLoss
 from train_utils.utils import get_grid3d, torch2dgrid
 from models import FNO3d, FNO2d
+from tqdm import tqdm
 
 
 def evaluate_3d(model, test_loader, device):
@@ -55,12 +56,16 @@ def evaluate_step_ahead(model, test_loader, device, grid):
     return total / batches
 
 
-def train_step_ahead(model, train_loader, optimizer, scheduler, config, device, grid):
+def train_step_ahead(model, train_loader, optimizer, scheduler, config, device, grid, use_tqdm=True):
     """Train on one-step pairs (u_t, u_{t+1})."""
     lploss = LpLoss(size_average=True)
     epochs = config['train']['epochs']
     grid = grid.to(device).unsqueeze(0)
-    for ep in range(epochs):
+    if use_tqdm:
+        pbar = tqdm(range(epochs), dynamic_ncols=True, smoothing=0.1)
+    else:
+        pbar = range(epochs)
+    for ep in pbar:
         model.train()
         running = 0.0
         batches = 0
