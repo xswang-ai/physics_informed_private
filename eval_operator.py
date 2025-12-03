@@ -36,7 +36,7 @@ def test_3d(config):
             wave=model_cfg.get('wave', 'haar'),
             in_chans=model_cfg.get('in_chans', 4),
             out_chans=model_cfg.get('out_chans', 1),
-            in_timesteps=loader.T + 5,
+            in_timesteps=data_config['nt'] + 5,
             dim=model_cfg.get('dim', 128),
             depth=model_cfg.get('depth', 4),
             temporal_depth=model_cfg.get('temporal_depth', 2),
