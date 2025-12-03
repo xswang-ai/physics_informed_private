@@ -66,8 +66,8 @@ def autoregressive_eval(model, sequences, device):
     with torch.no_grad():
         for (seq,) in loader:
             seq = seq.to(device)  # (1, S, S, T)
-            preds = [seq[..., 0]]  # start from t0 ground truth
-            prev = seq[..., 0]
+            preds = []  # predicted rollout
+            prev = seq[..., 0]  # initial condition
             for t in range(T - 1):
                 x_in = torch.cat((prev.unsqueeze(-1), grid.expand(prev.shape[0], -1, -1, -1)), dim=-1)
                 pred = model(x_in)
@@ -77,11 +77,13 @@ def autoregressive_eval(model, sequences, device):
                     pred = pred.squeeze(-1)
                 preds.append(pred)
                 prev = pred
-            pred_seq = torch.stack(preds, dim=-1)
-            total += lploss(pred_seq.view(1, S, S, T), seq.view(1, S, S, T)).item()
+            pred_seq = torch.stack(preds, dim=-1)       # (1, S, S, T-1)
+            truth_seq = seq[..., 1:]                    # align with predictions
+            total += lploss(pred_seq.view(1, S, S, T - 1),
+                            truth_seq.view(1, S, S, T - 1)).item()
             batches += 1
             if example['truth'] is None:
-                example['truth'] = seq.detach().cpu()
+                example['truth'] = truth_seq.detach().cpu()
                 example['pred'] = pred_seq.detach().cpu()
     return total / max(1, batches), example
 
@@ -143,9 +145,10 @@ def main():
         os.makedirs(pred_dir, exist_ok=True)
         os.makedirs(spec_dir, exist_ok=True)
 
-        truth = example['truth'][0]  # (S, S, T)
+        truth = example['truth'][0]  # (S, S, T-1)
         pred = example['pred'][0]
-        time_indices = range(0, T, 5)
+        T_pred = pred.shape[-1]
+        time_indices = range(0, T_pred, 5)
         for t_raw in time_indices:
             pred_frame = pred[..., t_raw]
             truth_frame = truth[..., t_raw]
