@@ -70,6 +70,7 @@ def eval_ns(model,  # model
     # data parameters
     v = 1 / config['data']['Re']
     S, T = loader.S, loader.T
+    T = min(T, max_time_steps-5)
     t_interval = config['data']['time_interval']
     # eval settings
     batch_size = config['test']['batchsize']
