@@ -13,6 +13,7 @@ from train_utils.train_2d import train_2d_operator
 from train_utils.losses import LpLoss
 from train_utils.utils import get_grid3d
 from models import FNO3d, FNO2d
+from models.wavelet_transform_exploration import WaveletTransformer3D
 
 
 def evaluate_3d(model, test_loader, device):
@@ -115,12 +116,32 @@ def train_3d(args, config):
                              batchsize=config['train']['batchsize'])
     # create model
     print(device)
-    model = FNO3d(modes1=config['model']['modes1'],
-                  modes2=config['model']['modes2'],
-                  modes3=config['model']['modes3'],
-                  fc_dim=config['model']['fc_dim'],
-                  layers=config['model']['layers'], 
-                  act=config['model']['act']).to(device)
+    model_cfg = config['model']
+    arch = model_cfg.get('arch', 'fno').lower()
+    if arch in ['wavelet3d', 'wavelet_transformer3d', 'wavelet']:
+        patch_size = model_cfg.get('patch_size', (4, 4))
+        patch_stride = model_cfg.get('patch_stride', 2)
+        if isinstance(patch_size, list):
+            patch_size = tuple(patch_size)
+        model = WaveletTransformer3D(
+            wave=model_cfg.get('wave', 'haar'),
+            in_chans=model_cfg.get('in_chans', 4),
+            out_chans=model_cfg.get('out_chans', 1),
+            in_timesteps=T_data + 5,
+            dim=model_cfg.get('dim', 128),
+            depth=model_cfg.get('depth', 4),
+            temporal_depth=model_cfg.get('temporal_depth', 2),
+            patch_size=patch_size,
+            patch_stride=patch_stride,
+            learnable_scaling_factor=model_cfg.get('learnable_scaling_factor', False),
+        ).to(device)
+    else:
+        model = FNO3d(modes1=model_cfg['modes1'],
+                      modes2=model_cfg['modes2'],
+                      modes3=model_cfg['modes3'],
+                      fc_dim=model_cfg['fc_dim'],
+                      layers=model_cfg['layers'], 
+                      act=model_cfg['act']).to(device)
     print('model structure: ', model)
     # Load from checkpoint
     if 'ckpt' in config['train']:

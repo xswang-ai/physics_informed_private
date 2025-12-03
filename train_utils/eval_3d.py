@@ -114,6 +114,7 @@ def eval_ns(model,  # model
 
     if device == 0 and example_pred is not None:
         plot_dir = config.get('log', {}).get('plot_dir', '.')
+        print("plot_dir: ", plot_dir)
         os.makedirs(plot_dir, exist_ok=True)
 
         pred_dir = os.path.join(plot_dir, 'saved_plots','predictions')
