@@ -6,7 +6,7 @@ data:
   n_sample: 20
   time_interval: 1
   nx: 256
-  nt: 65
+  nt: 128
   sub: 4
   sub_t: 1
   shuffle: False
@@ -26,6 +26,7 @@ model:
 test:
   batchsize: 1
   ckpt: '/scratch3/wan410/operator_learning_model/pino_ns2d/checkpoints/Re500-Wavelet-100/Wavelet-Re500-1s-100-ep5000.pt'
+  max_time_steps: 70
 
 log:
   project: 'PINO-None'

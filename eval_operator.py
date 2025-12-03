@@ -36,7 +36,7 @@ def test_3d(config):
             wave=model_cfg.get('wave', 'haar'),
             in_chans=model_cfg.get('in_chans', 4),
             out_chans=model_cfg.get('out_chans', 1),
-            in_timesteps=data_config['nt'] + 5,
+            in_timesteps=70,
             dim=model_cfg.get('dim', 128),
             depth=model_cfg.get('depth', 4),
             temporal_depth=model_cfg.get('temporal_depth', 2),
@@ -58,12 +58,14 @@ def test_3d(config):
         print('Weights loaded from %s' % ckpt_path)
     print(f'Resolution : {loader.S}x{loader.S}x{loader.T}')
     forcing = get_forcing(loader.S).to(device)
+    max_time = config.get('test', {}).get('max_time_steps', None)
     eval_ns(model,
             loader,
             eval_loader,
             forcing,
             config,
-            device=device)
+            device=device,
+            max_time_steps=max_time)
 
 
 def test_2d(config):
@@ -101,4 +103,3 @@ if __name__ == '__main__':
         test_2d(config)
     else:
         test_3d(config)
-

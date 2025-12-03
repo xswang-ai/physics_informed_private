@@ -55,7 +55,8 @@ def eval_ns(model,  # model
             project='PINO-default',
             group='FDM',
             tags=['Nan'],
-            use_tqdm=True):
+            use_tqdm=True,
+            max_time_steps=None):
     '''
     Evaluate the model for Navier Stokes equation
     '''
@@ -90,6 +91,11 @@ def eval_ns(model,  # model
             x_in = F.pad(x, (0, 0, 0, 5), "constant", 0)
             out = model(x_in).reshape(batch_size, S, S, T + 5)
             out = out[..., :-5]
+            if max_time_steps is not None:
+                t_keep = min(max_time_steps, out.shape[-1], y.shape[-1])
+                out = out[..., :t_keep]
+                y = y[..., :t_keep]
+                T = t_keep
             x = x[:, :, :, 0, -1]
             loss_l2 = myloss(out.view(batch_size, S, S, T), y.view(batch_size, S, S, T))
             loss_ic, loss_f = PINO_loss3d(out.view(batch_size, S, S, T), x, forcing, v, t_interval)
