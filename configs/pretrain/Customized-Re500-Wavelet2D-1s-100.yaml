@@ -20,7 +20,7 @@ model:
   dim: 512
   depth: 4
   patch_size: [4, 4]
-  patch_stride: 2
+  patch_stride: 4
   in_chans: 3           # u + (x,y) grid in step-ahead mode
   out_chans: 1
   learnable_scaling_factor:  False
