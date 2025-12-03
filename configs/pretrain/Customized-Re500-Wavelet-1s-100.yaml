@@ -23,7 +23,7 @@ model:
   patch_stride: 2
   in_chans: 4
   out_chans: 1
-  learnable_scaling_factor: True
+  learnable_scaling_factor: False
 
 train:
   batchsize: 100

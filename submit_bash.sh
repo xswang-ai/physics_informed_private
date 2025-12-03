@@ -33,6 +33,8 @@ export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
 # python3 train_operator.py --config_path configs/pretrain/Customized-Re500-FNO-1s-100.yaml --test_ratio 0.25
 
+python3 train_operator.py --config_path configs/pretrain/Customized-Re500-Wavelet-1s-100.yaml --test_ratio 0.25
+
 # python3 train_operator_2d.py --config_path configs/pretrain/Customized-Re500-FNO2d-1s-100.yaml --test_ratio 0.25
 
 # python3 train_operator_2d.py --config_path configs/pretrain/Customized-Re500-HFS-1s-100.yaml --test_ratio 0.25

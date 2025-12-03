@@ -54,7 +54,7 @@ class WaveletTransformer2D(nn.Module):
         self.token_norm = nn.LayerNorm(dim)
         self.learnable_scaling_factor = learnable_scaling_factor
         if learnable_scaling_factor:
-            self.scaling_factor = nn.Parameter(torch.ones(1)*0.25) # scalling factor for (LL, LH, HL, HH)
+            self.scaling_factor = nn.Parameter(torch.ones(4)*0.25) # scalling factor for (LL, LH, HL, HH)
         else:
             self.scaling_factor = 0.25
     
@@ -162,11 +162,22 @@ class WaveletTransformer3D(WaveletTransformer2D):
     
 
 if __name__ == "__main__":
-    x = torch.randn(2, 64, 64, 3)
-    # x = torch.randn(2, 96, 192, 7, 3)
-    print("x shape:", x.shape)
-    model = WaveletTransformer2D(in_chans=x.shape[-1],out_chans=x.shape[-1], patch_size=(4, 4), patch_stride=4, dim=512, depth=5)
-    # model = WaveletTransformerHFSKip(in_chans=x.shape[-1],out_chans=x.shape[-1], in_timesteps=x.shape[-2], dim=96, depth=4, num_levels=4)
+    # x = torch.randn(2, 64, 64, 3)
+    # # x = torch.randn(2, 96, 192, 7, 3)
+    # print("x shape:", x.shape)
+    # model = WaveletTransformer2D(in_chans=x.shape[-1],out_chans=x.shape[-1], patch_size=(4, 4), patch_stride=4, dim=512, depth=5)
+    # # model = WaveletTransformerHFSKip(in_chans=x.shape[-1],out_chans=x.shape[-1], in_timesteps=x.shape[-2], dim=96, depth=4, num_levels=4)
+    # print("number of parameters:", model.count_parameters())
+    # with torch.autograd.set_detect_anomaly(True):
+    #     output = model(x)
+    #     print("output shape:", output.shape)
+    #     loss = output.mean()
+    #     loss.backward()
+    #     print("backward done")
+    
+    x = torch.randn(2, 64, 64, 70, 4)
+    model = WaveletTransformer3D(in_chans=x.shape[-1],out_chans=x.shape[-1], patch_size=(4, 4), patch_stride=4, dim=512, depth=5, temporal_depth=2,
+                                 learnable_scaling_factor=True)
     print("number of parameters:", model.count_parameters())
     with torch.autograd.set_detect_anomaly(True):
         output = model(x)
@@ -174,4 +185,3 @@ if __name__ == "__main__":
         loss = output.mean()
         loss.backward()
         print("backward done")
-    
