@@ -45,4 +45,6 @@ python3 train_operator.py --config_path configs/pretrain/Customized-Re500-Wavele
 # python3 eval_operator_2d.py --config_path configs/pretrain/Customized-Re500-FNO2d-1s-100.yaml
 
 # python3 eval_operator.py --config_path configs/test/Customized-Re500-05s-test.yaml
+
+python3 eval_operator.py --config_path configs/test/Customized-Re500-Wavelet-test.yaml
 #################################################################################################################################

@@ -1,0 +1,32 @@
+data:
+  datapath: '/scratch3/wan410/operator_learning_data/pino_ns2d/NS_Re500_s256_T100_test.npy'
+  Re: 500
+  total_num: 100
+  offset: 0
+  n_sample: 20
+  time_interval: 1
+  nx: 256
+  nt: 128
+  sub: 4
+  sub_t: 1
+  shuffle: False
+
+model:
+  arch: wavelet3d
+  wave: haar
+  dim: 128
+  depth: 4
+  temporal_depth: 2
+  patch_size: [4, 4]
+  patch_stride: 2
+  in_chans: 4
+  out_chans: 1
+  learnable_scaling_factor: True
+
+test:
+  batchsize: 1
+  ckpt: '/scratch3/wan410/operator_learning_model/pino_ns2d/checkpoints/Re500-Wavelet-100/Wavelet-Re500-1s-100-ep5000.pt'
+
+log:
+  project: 'PINO-None'
+  group: 'eval-wavelet'
