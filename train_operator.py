@@ -135,6 +135,7 @@ def train_3d(args, config):
             patch_stride=patch_stride,
             learnable_scaling_factor=model_cfg.get('learnable_scaling_factor', False),
         ).to(device)
+        print("total number of parameters:", model.count_parameters())
     else:
         model = FNO3d(modes1=model_cfg['modes1'],
                       modes2=model_cfg['modes2'],
