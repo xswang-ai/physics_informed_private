@@ -13,6 +13,7 @@ from train_utils.train_2d import train_2d_operator
 from train_utils.losses import LpLoss
 from train_utils.utils import get_grid3d, torch2dgrid, save_checkpoint
 from models import FNO3d, FNO2d
+from models.wavelet_transform_exploration import WaveletTransformer2D
 from models.hfs import ResUNet
 from tqdm import tqdm
 
@@ -213,6 +214,22 @@ def train_3d(args, config):
                         out_c=1,
                         target_params=model_cfg.get('target_params', 'medium'),
                         device=device).to(device)
+    elif model_name in ['wavelet', 'wavelet2d', 'wavelet_transformer2d']:
+        if not step_ahead_mode:
+            raise ValueError("WaveletTransformer2D currently supports step-ahead mode (no datapath2).")
+        patch_size = model_cfg.get('patch_size', (4, 4))
+        if isinstance(patch_size, list):
+            patch_size = tuple(patch_size)
+        model = WaveletTransformer2D(
+            wave=model_cfg.get('wave', 'haar'),
+            in_chans=model_cfg.get('in_chans', 3),
+            out_chans=model_cfg.get('out_chans', 1),
+            dim=model_cfg.get('dim', 128),
+            depth=model_cfg.get('depth', 4),
+            patch_size=patch_size,
+            patch_stride=model_cfg.get('patch_stride', 2),
+            learnable_scaling_factor=model_cfg.get('learnable_scaling_factor', False),
+        ).to(device)
     else:
         model = FNO2d(modes1=model_cfg['modes1'],
                       modes2=model_cfg['modes2'],
@@ -284,6 +301,20 @@ def train_2d(args, config):
                         out_c=1,
                         target_params=model_cfg.get('target_params', 'medium'),
                         device=device).to(device)
+    elif model_name in ['wavelet', 'wavelet2d', 'wavelet_transformer2d']:
+        patch_size = model_cfg.get('patch_size', (4, 4))
+        if isinstance(patch_size, list):
+            patch_size = tuple(patch_size)
+        model = WaveletTransformer2D(
+            wave=model_cfg.get('wave', 'haar'),
+            in_chans=model_cfg.get('in_chans', 3),
+            out_chans=model_cfg.get('out_chans', 1),
+            dim=model_cfg.get('dim', 128),
+            depth=model_cfg.get('depth', 4),
+            patch_size=patch_size,
+            patch_stride=model_cfg.get('patch_stride', 2),
+            learnable_scaling_factor=model_cfg.get('learnable_scaling_factor', False),
+        ).to(device)
     else:
         model = FNO2d(modes1=model_cfg['modes1'],
                       modes2=model_cfg['modes2'],
