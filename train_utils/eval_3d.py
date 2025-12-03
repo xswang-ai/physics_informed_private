@@ -21,6 +21,30 @@ except ImportError:
     wandb = None
 
 
+def velocity_from_vorticity(w_slice: torch.Tensor):
+            """Compute velocity field from vorticity for spectrum calculation."""
+            n = w_slice.shape[0]
+            k_max = n // 2
+            device_local = w_slice.device
+            freq = torch.cat(
+                (
+                    torch.arange(0, k_max, device=device_local),
+                    torch.arange(-k_max, 0, device=device_local),
+                )
+            )
+            kx = freq.view(-1, 1).repeat(1, n)
+            ky = freq.view(1, -1).repeat(n, 1)
+            lap = kx ** 2 + ky ** 2
+            lap[0, 0] = 1.0
+            w_hat = torch.fft.fft2(w_slice)
+            psi_hat = w_hat / lap
+            ux_hat = 1j * ky * psi_hat
+            uy_hat = -1j * kx * psi_hat
+            ux = torch.fft.ifft2(ux_hat).real
+            uy = torch.fft.ifft2(uy_hat).real
+            return ux, uy
+
+
 def eval_ns(model,  # model
             loader,  # dataset instance
             dataloader,  # dataloader
@@ -97,29 +121,6 @@ def eval_ns(model,  # model
         os.makedirs(pred_dir, exist_ok=True)
         os.makedirs(spec_dir, exist_ok=True)
 
-        def _velocity_from_vorticity(w_slice: torch.Tensor):
-            """Compute velocity field from vorticity for spectrum calculation."""
-            n = w_slice.shape[0]
-            k_max = n // 2
-            device_local = w_slice.device
-            freq = torch.cat(
-                (
-                    torch.arange(0, k_max, device=device_local),
-                    torch.arange(-k_max, 0, device=device_local),
-                )
-            )
-            kx = freq.view(-1, 1).repeat(1, n)
-            ky = freq.view(1, -1).repeat(n, 1)
-            lap = kx ** 2 + ky ** 2
-            lap[0, 0] = 1.0
-            w_hat = torch.fft.fft2(w_slice)
-            psi_hat = w_hat / lap
-            ux_hat = 1j * ky * psi_hat
-            uy_hat = -1j * kx * psi_hat
-            ux = torch.fft.ifft2(ux_hat).real
-            uy = torch.fft.ifft2(uy_hat).real
-            return ux, uy
-
         time_indices = torch.arange(0, example_pred.shape[-1], 5)
         for t_raw in time_indices:
             if t_raw < 0:
@@ -148,8 +149,8 @@ def eval_ns(model,  # model
             plt.close(fig)
 
             try:
-                ux_pred, uy_pred = _velocity_from_vorticity(pred_frame.float())
-                ux_true, uy_true = _velocity_from_vorticity(truth_frame.float())
+                ux_pred, uy_pred = velocity_from_vorticity(pred_frame.float())
+                ux_true, uy_true = velocity_from_vorticity(truth_frame.float())
                 k_bins, Ek_pred = compute_spectra_torch(ux_pred, uy_pred, 2 * math.pi, 2 * math.pi)
                 _, Ek_true = compute_spectra_torch(ux_true, uy_true, 2 * math.pi, 2 * math.pi)
 
