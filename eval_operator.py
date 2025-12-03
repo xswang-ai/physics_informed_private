@@ -3,6 +3,7 @@ import yaml
 import torch
 from torch.utils.data import DataLoader
 from models import FNO3d, FNO2d
+from models.wavelet_transform_exploration import WaveletTransformer3D
 from train_utils import NSLoader, get_forcing, DarcyFlow
 
 from train_utils.eval_3d import eval_ns
@@ -24,11 +25,31 @@ def test_3d(config):
                                      batch_size=config['test']['batchsize'],
                                      start=data_config['offset'],
                                      train=data_config['shuffle'])
-    model = FNO3d(modes1=config['model']['modes1'],
-                  modes2=config['model']['modes2'],
-                  modes3=config['model']['modes3'],
-                  fc_dim=config['model']['fc_dim'],
-                  layers=config['model']['layers']).to(device)
+    model_cfg = config['model']
+    arch = model_cfg.get('arch', 'fno').lower()
+    if arch in ['wavelet3d', 'wavelet_transformer3d', 'wavelet']:
+        patch_size = model_cfg.get('patch_size', (4, 4))
+        if isinstance(patch_size, list):
+            patch_size = tuple(patch_size)
+        patch_stride = model_cfg.get('patch_stride', 2)
+        model = WaveletTransformer3D(
+            wave=model_cfg.get('wave', 'haar'),
+            in_chans=model_cfg.get('in_chans', 4),
+            out_chans=model_cfg.get('out_chans', 1),
+            in_timesteps=loader.T + 5,
+            dim=model_cfg.get('dim', 128),
+            depth=model_cfg.get('depth', 4),
+            temporal_depth=model_cfg.get('temporal_depth', 2),
+            patch_size=patch_size,
+            patch_stride=patch_stride,
+            learnable_scaling_factor=model_cfg.get('learnable_scaling_factor', False),
+        ).to(device)
+    else:
+        model = FNO3d(modes1=model_cfg['modes1'],
+                      modes2=model_cfg['modes2'],
+                      modes3=model_cfg['modes3'],
+                      fc_dim=model_cfg['fc_dim'],
+                      layers=model_cfg['layers']).to(device)
     print("total number of parameters: ", sum(p.numel() for p in model.parameters()))
     if 'ckpt' in config['test']:
         ckpt_path = config['test']['ckpt']
@@ -80,5 +101,4 @@ if __name__ == '__main__':
         test_2d(config)
     else:
         test_3d(config)
-
 
