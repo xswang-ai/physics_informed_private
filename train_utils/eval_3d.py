@@ -137,8 +137,18 @@ def eval_ns(model,  # model
             fig, axes = plt.subplots(1, 3, figsize=(12, 4))
             titles = ['Truth', 'Prediction', 'Error']
             data_to_plot = [truth_frame, pred_frame, err_frame]
+
+            truth_min = truth_frame.min().item()
+            truth_max = truth_frame.max().item()
+            abs_lim = max(abs(truth_min), abs(truth_max))
+            vmin = -abs_lim
+            vmax = abs_lim
             for ax, title, data in zip(axes, titles, data_to_plot):
-                im = ax.imshow(data.numpy(), cmap='RdBu_r', origin='lower')
+                if title in ['Truth', 'Prediction']:
+                    im = ax.imshow(data.numpy(), cmap='RdBu_r', origin='lower', vmin=vmin, vmax=vmax)
+                else:
+                    err_abs = max(abs(data.min().item()), abs(data.max().item()), 1e-8)
+                    im = ax.imshow(data.numpy(), cmap='RdBu_r', origin='lower', vmin=-err_abs, vmax=err_abs)
                 ax.set_title(f'{title} (T={t_raw})')
                 ax.set_xticks([])
                 ax.set_yticks([])
