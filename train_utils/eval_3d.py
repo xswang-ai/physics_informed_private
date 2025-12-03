@@ -70,7 +70,7 @@ def eval_ns(model,  # model
     # data parameters
     v = 1 / config['data']['Re']
     S, T = loader.S, loader.T
-    T = min(T, max_time_steps-5)
+    
     t_interval = config['data']['time_interval']
     # eval settings
     batch_size = config['test']['batchsize']
@@ -90,7 +90,9 @@ def eval_ns(model,  # model
         for x, y in pbar:
             x, y = x.to(device), y.to(device)
             x_in = F.pad(x, (0, 0, 0, 5), "constant", 0)
-            out = model(x_in).reshape(batch_size, S, S, T + 5)
+            out = model(x_in)
+            print("x_in shape: ", x_in.shape, "out shape: ", out.shape)
+            out = out.reshape(batch_size, S, S, T + 5)
             out = out[..., :-5]
             if max_time_steps is not None:
                 t_keep = min(max_time_steps, out.shape[-1], y.shape[-1])
