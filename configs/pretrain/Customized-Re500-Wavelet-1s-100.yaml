@@ -20,7 +20,7 @@ model:
   depth: 6
   temporal_depth: 2
   patch_size: [4, 4]
-  patch_stride: 2
+  patch_stride: 4
   in_chans: 4
   out_chans: 1
   learnable_scaling_factor: False
