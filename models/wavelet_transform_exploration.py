@@ -177,7 +177,7 @@ if __name__ == "__main__":
     
     x = torch.randn(2, 64, 64, 70, 4)
     model = WaveletTransformer3D(in_chans=x.shape[-1],out_chans=1, patch_size=(4, 4), patch_stride=4, dim=512, depth=5, temporal_depth=2,
-                                 learnable_scaling_factor=True)
+                                 learnable_scaling_factor=False)
     print("number of parameters:", model.count_parameters())
     with torch.autograd.set_detect_anomaly(True):
         output = model(x)
