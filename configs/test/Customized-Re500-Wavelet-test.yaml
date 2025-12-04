@@ -4,7 +4,7 @@ data:
   total_num: 100
   offset: 0
   n_sample: 20
-  time_interval: 1
+  time_interval: 0.5
   nx: 256
   nt: 128
   sub: 4
