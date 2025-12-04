@@ -25,7 +25,7 @@ model:
 
 test:
   batchsize: 1
-  ckpt: '/scratch3/wan410/operator_learning_model/pino_ns2d/checkpoints/Re500-Wavelet-100/Wavelet-Re500-1s-100-ep5000.pt'
+  ckpt: '/scratch3/wan410/operator_learning_model/pino_ns2d/checkpoints/Re500-Wavelet-100/Wavelet-Re500-1s-100.pt'
   max_time_steps: 128
 
 log:
