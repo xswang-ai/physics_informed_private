@@ -101,7 +101,7 @@ def eval_ns(model,  # model
             x = x[:, :, :, 0, -1]
             loss_l2 = myloss(out.view(batch_size, S, S, -1), y.view(batch_size, S, S, -1))
             # loss_ic, loss_f = PINO_loss3d(out.view(batch_size, S, S, T), x, forcing, v, t_interval)
-            loss_f = 0.0
+            loss_f = torch.tensor(0.0, device=device)
             loss_dict['f_error'] += loss_f
             loss_dict['test_l2'] += loss_l2
             if example_pred is None:
