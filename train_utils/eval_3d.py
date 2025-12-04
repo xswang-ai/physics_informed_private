@@ -91,8 +91,10 @@ def eval_ns(model,  # model
             print("x shape: ", x.shape, "y shape: ", y.shape)
             # truncate x and y here if the time steps is greater the model.
             x_in = F.pad(x, (0, 0, 0, 5), "constant", 0)
-            out = model(x_in).reshape(batch_size, S, S, -1)
-            out = out[..., :x.shape[-1]]
+            out = model(x_in)
+            print("out shape: ", out.shape)
+            out = out.reshape(batch_size, S, S, -1)
+            y = y[..., :out.shape[-1]]
             if max_time_steps is not None:
                 t_keep = min(max_time_steps, out.shape[-1], y.shape[-1])
                 out = out[..., :t_keep]
