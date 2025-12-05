@@ -124,11 +124,12 @@ def main():
             learnable_scaling_factor=model_cfg.get('learnable_scaling_factor', False),
         ).to(device)
     elif model_name == 'wno':
+        dummy = torch.zeros(1, 1, S, S, device=device)
         model = WNO2d(in_channels=model_cfg.get('in_chans', 3),
                       out_channels=model_cfg.get('out_chans', 1),
                       width=model_cfg.get('width', 64),
                       level=model_cfg.get('level', 4),
-                      dummy_data=model_cfg.get('dummy_data', None)).to(device)
+                      dummy_data=dummy).to(device)
     else:
         model = FNO2d(modes1=model_cfg['modes1'],
                       modes2=model_cfg['modes2'],
