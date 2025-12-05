@@ -72,7 +72,7 @@ class WaveConv2d(nn.Module):
 
 """ The forward operation """
 class WNO2d(nn.Module):
-    def __init__(self, width, level, dummy_data=None):
+    def __init__(self, in_channels, out_channels, width, level, dummy_data=None):
         super(WNO2d, self).__init__()
 
         """
@@ -92,7 +92,7 @@ class WNO2d(nn.Module):
         self.dummy_data = dummy_data
         self.width = width
         self.padding = 1 # pad the domain if input is non-periodic
-        self.fc0 = nn.Linear(3, self.width) 
+        self.fc0 = nn.Linear(in_channels, self.width) 
         # input channel is 12: the solution of the previous 10 timesteps + 
         # 2 locations (u(t-10, x, y), ..., u(t-1, x, y),  x, y)
 
@@ -106,7 +106,7 @@ class WNO2d(nn.Module):
         self.w3 = nn.Conv2d(self.width, self.width, 1)
 
         self.fc1 = nn.Linear(self.width, 128)
-        self.fc2 = nn.Linear(128, 1)
+        self.fc2 = nn.Linear(128, out_channels)
 
     def forward(self, x):
         grid = self.get_grid(x.shape, x.device)

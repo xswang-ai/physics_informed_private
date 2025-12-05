@@ -16,6 +16,8 @@ data:
 
 model:
   name: wno
+  in_chans: 5
+  out_chans: 1
   width: 64
   level: 3
 

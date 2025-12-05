@@ -219,7 +219,9 @@ def train_3d(args, config):
         if not step_ahead_mode:
             raise ValueError("WNO2d currently supports step-ahead mode (no datapath2).")
         dummy = torch.zeros(1, 1, S_data, S_data, device=device)
-        model = WNO2d(width=model_cfg.get('width', 64),
+        model = WNO2d(in_channels=model_cfg.get('in_chans', 3),
+                      out_channels=model_cfg.get('out_chans', 1),
+                      width=model_cfg.get('width', 64),
                       level=model_cfg.get('level', 3),
                       dummy_data=dummy).to(device)
     elif model_name in ['wavelet', 'wavelet2d', 'wavelet_transformer2d']:
