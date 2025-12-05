@@ -15,7 +15,7 @@ from train_utils.utils import get_grid3d, torch2dgrid, save_checkpoint
 from models import FNO3d, FNO2d
 from models.wavelet_transform_exploration import WaveletTransformer2D, InnerWaveletTransformer2D
 from models.hfs import ResUNet
-# from models.wno import WNO2d
+from models.wno import WNO2d
 from tqdm import tqdm
 
 
