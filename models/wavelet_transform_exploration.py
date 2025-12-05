@@ -8,7 +8,7 @@ import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__)))
 from wavelet_transform import DWT_2D, IDWT_2D
-from wavelet_transform import RelativePositionBias, Transformer
+from wavelet_transform import RelativePositionBias, Transformer, FeedForward, Attention
 
 
 class WaveletTransformer2D(nn.Module):
@@ -159,8 +159,103 @@ class WaveletTransformer3D(WaveletTransformer2D):
         out = self.output_proj(out)
         out = rearrange(out, '(b t) c h w -> b h w t c', b=b, t=t)
         return out
-    
 
+
+
+
+class WaveletBlock(nn.Module):
+    def __init__(self, wave='haar', dim=64, **kwargs):
+        super().__init__(**kwargs)
+        self.dwt = DWT_2D(wave)
+        self.mlp_head = nn.Sequential(
+            nn.Linear(dim, dim//4),
+             nn.LayerNorm(dim//4))
+        self.conv_post =  self.filter = nn.Sequential(
+                nn.Conv2d(dim, dim, kernel_size=3, padding=1, stride=1, groups=1),
+                nn.BatchNorm2d(dim),
+            )
+        self.idwt = IDWT_2D(wave)
+        self.attention = Attention(dim)
+        self.final_proj = nn.Linear(dim//4, dim)
+
+    def forward(self, x, h, w):
+        """
+        Input: (B, (H x W), c)
+        Output: (B, (H, W), c)
+        """
+        b, c = x.shape[0], x.shape[-1]
+        x = self.mlp_head(x) # (B, (H x W), C) -> (B, (H x W), C//4)
+        x = rearrange(x, 'b (h w) c -> b c h w', h=h, w=w)
+        x = self.dwt(x) # -> (B, 4, C//4, H/2, W/2)
+        new_h, new_w = x.shape[-2], x.shape[-1]
+        x = self.conv_post(x) # -> (B, 4C//4, H/2, W/2)
+        x = rearrange(x, 'b c h w -> b (h w) c')
+        x = self.attention(x) # -> (B, H/2 x W/2, C)
+        x = rearrange(x, 'b (h w) c -> b c h w', h=new_h, w=new_w)
+        x = torch.reshape(x, (b, 4, c//4, new_h, new_w))
+        x = self.idwt(x) # -> (B, C, H, W)
+        x = rearrange(x, 'b c h w -> b (h w) c')
+        x = self.final_proj(x) # -> (B, (H x W), C)
+        return x
+
+class InnerWaveletTransformer2D(nn.Module):
+    def __init__(self, wave='haar', input_dim=3, output_dim=3, dim=64, n_layers=5, add_grid=False, **kwargs):
+        super().__init__(**kwargs)
+        self.add_grid = add_grid
+        self.n_layers = n_layers
+        self.input_proj = nn.Linear(input_dim, dim)
+        self.output_proj = nn.Sequential(nn.Linear(dim, dim//2),
+                                            nn.GELU(),
+                                            nn.Linear(dim//2, output_dim))
+        self.layers = nn.ModuleList([])
+        for i in range(self.n_layers):
+            layer = nn.ModuleList([
+                nn.LayerNorm(dim),
+                WaveletBlock(wave=wave, dim=dim),
+                nn.LayerNorm(dim),
+                FeedForward(dim, dim*4)
+                ])
+            self.layers.append(layer)
+        # self.norm = nn.LayerNorm(dim)
+
+    def get_grid(self, x):
+        b, h, w, _ = x.shape
+        size_x, size_y = h, w
+        gridx = torch.tensor(np.linspace(0, 1, size_x), dtype=torch.float).to(x.device)
+        gridx = gridx.reshape(1, size_x, 1, 1).repeat([b, 1, size_y, 1]) 
+        gridy = torch.tensor(np.linspace(0, 1, size_y), dtype=torch.float).to(x.device)
+        gridy = gridy.reshape(1, 1, size_y, 1).repeat([b, size_x, 1, 1]) 
+        x_grid = torch.cat((gridx, gridy), dim=-1)
+
+        # gridx = torch.tensor(np.linspace(0, 1, self.ref), dtype=torch.float)
+        # gridx = gridx.reshape(1, self.ref, 1, 1).repeat([b, 1, self.ref, 1])
+        # gridy = torch.tensor(np.linspace(0, 1, self.ref), dtype=torch.float)
+        # gridy = gridy.reshape(1, 1, self.ref, 1).repeat([b, self.ref, 1, 1])
+        # grid_ref = torch.cat((gridx, gridy), dim=-1).to(x.device)  
+
+        # x_grid = torch.sqrt(torch.sum((grid[:, :, :, None, None, :] - grid_ref[:, None, None, :, :, :]) ** 2, dim=-1)). \
+        #     reshape(b, size_x, size_y, self.ref * self.ref).contiguous()  
+        return x_grid
+
+    def forward(self, x):
+        if self.add_grid:
+            x_grid = self.get_grid(x)
+            x = torch.cat((x, x_grid), dim=-1)
+        x = self.input_proj(x)
+        h, w = x.shape[1], x.shape[2]
+        x = rearrange(x, 'b h w c -> b (h w) c')
+        for ln1, wavelet_block, ln2, ff in self.layers:
+            x = wavelet_block(ln1(x), h, w) + x
+            x = ln2(ff(x)) + x
+        # x = self.norm(x)
+        x = self.output_proj(x)
+        x = rearrange(x, 'b (h w) c-> b h w c', h=h, w=w)
+        return x
+
+
+    def count_parameters(self):
+        return sum(p.numel() for p in self.parameters() if p.requires_grad)
+        
 if __name__ == "__main__":
     # x = torch.randn(2, 64, 64, 3)
     # # x = torch.randn(2, 96, 192, 7, 3)
@@ -175,9 +270,19 @@ if __name__ == "__main__":
     #     loss.backward()
     #     print("backward done")
     
-    x = torch.randn(2, 64, 64, 70, 4)
-    model = WaveletTransformer3D(in_chans=x.shape[-1],out_chans=1, patch_size=(4, 4), patch_stride=4, dim=512, depth=5, temporal_depth=2,
-                                 learnable_scaling_factor=False)
+    # x = torch.randn(2, 64, 64, 70, 4)
+    # model = WaveletTransformer3D(in_chans=x.shape[-1],out_chans=1, patch_size=(4, 4), patch_stride=4, dim=512, depth=5, temporal_depth=2,
+    #                              learnable_scaling_factor=False)
+    # print("number of parameters:", model.count_parameters())
+    # with torch.autograd.set_detect_anomaly(True):
+    #     output = model(x)
+    #     print("output shape:", output.shape)
+    #     loss = output.mean()
+    #     loss.backward()
+    #     print("backward done")
+
+    x = torch.randn(2, 64, 64, 3)
+    model = InnerWaveletTransformer2D(input_dim=3, output_dim=3, dim=256, n_layers=5)
     print("number of parameters:", model.count_parameters())
     with torch.autograd.set_detect_anomaly(True):
         output = model(x)

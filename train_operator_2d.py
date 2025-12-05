@@ -13,8 +13,9 @@ from train_utils.train_2d import train_2d_operator
 from train_utils.losses import LpLoss
 from train_utils.utils import get_grid3d, torch2dgrid, save_checkpoint
 from models import FNO3d, FNO2d
-from models.wavelet_transform_exploration import WaveletTransformer2D
+from models.wavelet_transform_exploration import WaveletTransformer2D, InnerWaveletTransformer2D
 from models.hfs import ResUNet
+from models.wno import WNO2d
 from tqdm import tqdm
 
 
@@ -214,6 +215,13 @@ def train_3d(args, config):
                         out_c=1,
                         target_params=model_cfg.get('target_params', 'medium'),
                         device=device).to(device)
+    elif model_name in ['wno', 'wno2d']:
+        if not step_ahead_mode:
+            raise ValueError("WNO2d currently supports step-ahead mode (no datapath2).")
+        dummy = torch.zeros(1, 1, S_data, S_data, device=device)
+        model = WNO2d(width=model_cfg.get('width', 64),
+                      level=model_cfg.get('level', 3),
+                      dummy_data=dummy).to(device)
     elif model_name in ['wavelet', 'wavelet2d', 'wavelet_transformer2d']:
         if not step_ahead_mode:
             raise ValueError("WaveletTransformer2D currently supports step-ahead mode (no datapath2).")
@@ -229,6 +237,16 @@ def train_3d(args, config):
             patch_size=patch_size,
             patch_stride=model_cfg.get('patch_stride', 2),
             learnable_scaling_factor=model_cfg.get('learnable_scaling_factor', False),
+        ).to(device)
+    elif model_name in ['inner_wavelet', 'inner_wavelet2d', 'inner_wavelet_transformer2d']:
+        if not step_ahead_mode:
+            raise ValueError("InnerWaveletTransformer2D currently supports step-ahead mode (no datapath2).")
+        model = InnerWaveletTransformer2D(
+            wave=model_cfg.get('wave', 'haar'),
+            input_dim=model_cfg.get('in_chans', 3),  # expecting u with grid concatenated
+            output_dim=model_cfg.get('out_chans', 1),
+            dim=model_cfg.get('dim', 128),
+            n_layers=model_cfg.get('n_layers', 5),
         ).to(device)
     else:
         model = FNO2d(modes1=model_cfg['modes1'],
@@ -301,6 +319,8 @@ def train_2d(args, config):
                         out_c=1,
                         target_params=model_cfg.get('target_params', 'medium'),
                         device=device).to(device)
+    elif model_name in ['wno', 'wno2d']:
+        raise ValueError("WNO2d is not configured for Darcy 2D training in this script.")
     elif model_name in ['wavelet', 'wavelet2d', 'wavelet_transformer2d']:
         patch_size = model_cfg.get('patch_size', (4, 4))
         if isinstance(patch_size, list):
