@@ -7,6 +7,7 @@ from torch.utils.data import DataLoader, TensorDataset
 from models import FNO2d
 from models.hfs import ResUNet
 from models.wavelet_transform_exploration import WaveletTransformer2D
+from models.wno import WNO2d
 from train_utils.losses import LpLoss
 from train_utils.utils import get_grid3d, torch2dgrid
 from train_utils.datasets import NSLoader2D
@@ -122,6 +123,12 @@ def main():
             patch_stride=model_cfg.get('patch_stride', 2),
             learnable_scaling_factor=model_cfg.get('learnable_scaling_factor', False),
         ).to(device)
+    elif model_name == 'wno':
+        model = WNO2d(in_channels=model_cfg.get('in_chans', 3),
+                      out_channels=model_cfg.get('out_chans', 1),
+                      width=model_cfg.get('width', 64),
+                      level=model_cfg.get('level', 4),
+                      dummy_data=model_cfg.get('dummy_data', None)).to(device)
     else:
         model = FNO2d(modes1=model_cfg['modes1'],
                       modes2=model_cfg['modes2'],
