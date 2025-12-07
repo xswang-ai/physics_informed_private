@@ -597,7 +597,8 @@ class NSLoader2D(Dataset):
                  nx, nt,
                  datapath2=None, sub=1, sub_t=1,
                  N=None, t_interval=1.0,
-                 n_samples=None, offset=0):
+                 n_samples=None, offset=0,
+                 train=True):
         '''
         Load data from npy and reshape to (N, X, Y, T)
         Args:
@@ -615,6 +616,7 @@ class NSLoader2D(Dataset):
         self.S = nx // sub
         self.T = int(nt * t_interval) // sub_t + 1
         self.time_scale = t_interval
+        self.train = train
         data1 = np.load(datapath1)
         data1 = torch.tensor(data1, dtype=torch.float)[..., ::sub_t, ::sub, ::sub]
 

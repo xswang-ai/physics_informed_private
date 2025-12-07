@@ -184,6 +184,7 @@ def train_3d(args, config):
             [train_size, test_size],
             generator=torch.Generator().manual_seed(args.test_seed)
         )
+        test_set.train = False # set test set to not train
         test_loader = DataLoader(test_set,
                                  batch_size=config['train']['batchsize'],
                                  shuffle=False)
