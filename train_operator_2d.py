@@ -105,7 +105,7 @@ def get_fixed_test_pair(model, test_source, grid, device, sample_idx=0, t_idx=0)
             pred = pred.squeeze(-2)
         if pred.dim() == 4:
             pred = pred.squeeze(-1)
-    return pred, y
+    return pred, y.unsqueeze(0)
 
 
 def train_step_ahead(model, train_loader, optimizer, scheduler, config, device, grid, test_loader=None, eval_step=100,save_step=1000, use_tqdm=True, writer=None, model_name='fno2d'):
