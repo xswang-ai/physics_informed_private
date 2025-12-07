@@ -199,18 +199,23 @@ class WaveletBlock(nn.Module):
         return x
 
 class InnerWaveletTransformer2D(nn.Module):
-    def __init__(self, wave='haar', input_dim=3, output_dim=3, dim=64, n_layers=5, add_grid=False, **kwargs):
+    def __init__(self, wave='haar', input_dim=3, output_dim=3, dim=64, n_layers=5, add_grid=False, path_size=None, **kwargs):
         super().__init__(**kwargs)
         self.add_grid = add_grid
         self.n_layers = n_layers
-        # stride = 4
-        # self.input_proj = nn.Sequential(nn.Conv2d(input_dim, dim, kernel_size=stride, stride=stride),
-        #                                 nn.BatchNorm2d(dim),
-        #                                 nn.GELU()) # patch to reduce the dimension for attention
-        self.input_proj = nn.Linear(input_dim, dim)
-        self.output_proj = nn.Sequential(nn.Linear(dim, dim//2),
+        self.path_size = path_size
+        if path_size is None:
+            self.input_proj = nn.Linear(input_dim, dim)
+            self.output_proj = nn.Sequential(nn.Linear(dim, dim//2),
                                             nn.GELU(),
                                             nn.Linear(dim//2, output_dim))
+        else:
+            self.input_proj = nn.Sequential(nn.Conv2d(input_dim, dim, kernel_size=path_size, stride=path_size),
+                                            nn.BatchNorm2d(dim),
+                                            nn.GELU())
+            self.output_proj = nn.Sequential(nn.ConvTranspose2d(dim, dim//2, kernel_size=path_size, stride=path_size),
+                                            nn.GELU(),
+                                            nn.Conv2d(dim//2, output_dim, kernel_size=1, stride=1))
         self.layers = nn.ModuleList([])
         for i in range(self.n_layers):
             layer = nn.ModuleList([
@@ -245,6 +250,8 @@ class InnerWaveletTransformer2D(nn.Module):
         if self.add_grid:
             x_grid = self.get_grid(x)
             x = torch.cat((x, x_grid), dim=-1)
+        if self.path_size is not None:
+            x = rearrange(x, 'b h w c -> b c h w')
         x = self.input_proj(x)
         h, w = x.shape[1], x.shape[2]
         x = rearrange(x, 'b h w c -> b (h w) c')
@@ -252,8 +259,13 @@ class InnerWaveletTransformer2D(nn.Module):
             x = wavelet_block(ln1(x), h, w) + x
             x = ln2(ff(x)) + x
         # x = self.norm(x)
-        x = self.output_proj(x)
-        x = rearrange(x, 'b (h w) c-> b h w c', h=h, w=w)
+        if self.path_size is None:
+            x = self.output_proj(x)
+            x = rearrange(x, 'b (h w) c-> b h w c', h=h, w=w)
+        else:
+            x = rearrange(x, 'b (h w) c -> b c h w', h=h, w=w)
+            x = self.output_proj(x)
+            x = rearrange(x, 'b c h w -> b h w c')
         return x
 
 
