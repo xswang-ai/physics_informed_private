@@ -172,7 +172,7 @@ class WaveletBlock(nn.Module):
              nn.LayerNorm(dim//4))
         self.conv_post =  self.filter = nn.Sequential(
                 nn.Conv2d(dim, dim, kernel_size=3, padding=1, stride=1, groups=1),
-                nn.BatchNorm2d(dim),
+                # nn.BatchNorm2d(dim),
             )
         self.idwt = IDWT_2D(wave)
         self.attention = Attention(dim)
@@ -282,7 +282,7 @@ if __name__ == "__main__":
     #     print("backward done")
 
     x = torch.randn(2, 64, 64, 3)
-    model = InnerWaveletTransformer2D(input_dim=3, output_dim=3, dim=256, n_layers=5)
+    model = InnerWaveletTransformer2D(input_dim=3, output_dim=3, dim=256, n_layers=4)
     print("number of parameters:", model.count_parameters())
     with torch.autograd.set_detect_anomaly(True):
         output = model(x)
