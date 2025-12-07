@@ -105,7 +105,6 @@ def get_fixed_test_pair(model, test_source, grid, device, sample_idx=0, t_idx=0)
             pred = pred.squeeze(-2)
         if pred.dim() == 4:
             pred = pred.squeeze(-1)
-        pred = pred.squeeze(0)
     return pred, y
 
 
