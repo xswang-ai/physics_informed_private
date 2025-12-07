@@ -203,6 +203,10 @@ class InnerWaveletTransformer2D(nn.Module):
         super().__init__(**kwargs)
         self.add_grid = add_grid
         self.n_layers = n_layers
+        # stride = 4
+        # self.input_proj = nn.Sequential(nn.Conv2d(input_dim, dim, kernel_size=stride, stride=stride),
+        #                                 nn.BatchNorm2d(dim),
+        #                                 nn.GELU()) # patch to reduce the dimension for attention
         self.input_proj = nn.Linear(input_dim, dim)
         self.output_proj = nn.Sequential(nn.Linear(dim, dim//2),
                                             nn.GELU(),
