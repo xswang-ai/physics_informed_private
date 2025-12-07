@@ -4,7 +4,7 @@ from argparse import ArgumentParser
 import torch
 import torch.nn.functional as F
 import math
-from torch.utils.data import DataLoader, random_split, TensorDataset, Dataset
+from torch.utils.data import DataLoader, random_split, TensorDataset, Dataset, Subset
 from torch.utils.tensorboard import SummaryWriter
 
 from solver.random_fields import GaussianRF
@@ -69,6 +69,46 @@ def evaluate_step_ahead(model, test_loader, device, grid):
     return total / batches, pred_plot, target_plot
 
 
+def _get_base_dataset(ds):
+    """Return the underlying dataset (unwrap Subset/DataLoader)."""
+    if isinstance(ds, DataLoader):
+        ds = ds.dataset
+    while isinstance(ds, Subset):
+        ds = ds.dataset
+    return ds
+
+
+def get_fixed_test_pair(model, test_source, grid, device, sample_idx=0, t_idx=0):
+    """
+    Grab a deterministic (x_t, x_{t+1}) pair from the test data without relying on
+    the test loader's random timestep selection.
+    """
+    base_ds = _get_base_dataset(test_source)
+    if not hasattr(base_ds, 'data'):
+        return None, None
+    data = base_ds.data
+    if sample_idx >= data.shape[0]:
+        sample_idx = data.shape[0] - 1
+    max_t = data.shape[-1] - 1
+    if max_t <= 0:
+        return None, None
+    t_idx = min(t_idx, max_t - 1)
+
+    sample = data[sample_idx]
+    x = sample[..., t_idx].to(device)
+    y = sample[..., t_idx + 1].to(device)
+    grid_b = grid.to(device).unsqueeze(0)
+    x_in = torch.cat((x.unsqueeze(0).unsqueeze(-1), grid_b), dim=-1)
+    with torch.no_grad():
+        pred = model(x_in)
+        if pred.dim() == 5:
+            pred = pred.squeeze(-2)
+        if pred.dim() == 4:
+            pred = pred.squeeze(-1)
+        pred = pred.squeeze(0)
+    return pred, y
+
+
 def train_step_ahead(model, train_loader, optimizer, scheduler, config, device, grid, test_loader=None, eval_step=100, use_tqdm=True, writer=None, model_name='fno2d'):
     """Train on one-step pairs (u_t, u_{t+1})."""
     lploss = LpLoss(size_average=True)
@@ -105,12 +145,19 @@ def train_step_ahead(model, train_loader, optimizer, scheduler, config, device, 
         if use_tqdm:
             pbar.set_description((f'Train L2: {avg:.6f}'))
 
-        if ep % eval_step == 0:
-            test_l2, pred_plot, target_plot = evaluate_step_ahead(model, test_loader, device, grid)
+        if ep % eval_step == 0 and test_loader is not None:
+            test_l2, _, _ = evaluate_step_ahead(model, test_loader, device, grid)
             print(f'Random test split relative L2: {test_l2:.6f}')
-            writer.add_scalar('eval/test_l2', test_l2, ep + 1)
             if writer is not None:
-                log_tensorboard_images_and_spectra(writer, pred_plot.unsqueeze(-1), target_plot.unsqueeze(-1), ep + 1, 'vorticity', model_name)
+                writer.add_scalar('eval/test_l2', test_l2, ep + 1)
+                fixed_pred, fixed_target = get_fixed_test_pair(model, test_loader, grid, device, sample_idx=0, t_idx=0)
+                if fixed_pred is not None:
+                    log_tensorboard_images_and_spectra(writer,
+                                                       fixed_pred.unsqueeze(-1),
+                                                       fixed_target.unsqueeze(-1),
+                                                       ep + 1,
+                                                       'vorticity',
+                                                       model_name)
 
 
 def build_synthetic_dataset(data_config, n_samples, step_ahead=False):
@@ -281,10 +328,20 @@ def train_3d(args, config):
                     config['train']['save_name'],
                     model, optimizer, scheduler)
     if test_loader is not None:
-        test_l2 = evaluate_step_ahead(model, test_loader, device, grid)
+        test_l2, _, _ = evaluate_step_ahead(model, test_loader, device, grid)
         print(f'Random test split relative L2: {test_l2:.6f}')
-        writer.add_scalar('eval/test_l2', test_l2, config['train']['epochs'])
-    writer.close()
+        if writer is not None:
+            writer.add_scalar('eval/test_l2', test_l2, config['train']['epochs'])
+            fixed_pred, fixed_target = get_fixed_test_pair(model, test_loader, grid, device, sample_idx=0, t_idx=0)
+            if fixed_pred is not None:
+                log_tensorboard_images_and_spectra(writer,
+                                                   fixed_pred.unsqueeze(-1),
+                                                   fixed_target.unsqueeze(-1),
+                                                   config['train']['epochs'],
+                                                   'vorticity',
+                                                   model_name)
+    if writer is not None:
+        writer.close()
 
 
 if __name__ == '__main__':
