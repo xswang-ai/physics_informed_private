@@ -124,8 +124,8 @@ def log_tensorboard_images_and_spectra(
             # Get velocity components based on form
             if form == 'vorticity':
 
-                ux_pred, uy_pred = velocity_from_vorticity(pred_batch.float())
-                ux_target, uy_target = velocity_from_vorticity(target_batch.float())
+                ux_pred, uy_pred = velocity_from_vorticity(torch.from_numpy(pred_batch))
+                ux_target, uy_target = velocity_from_vorticity(torch.from_numpy(target_batch))
             else:
                 # Cannot compute spectra for this form/channel combination
                 return
