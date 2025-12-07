@@ -97,7 +97,7 @@ def get_fixed_test_pair(model, test_source, grid, device, sample_idx=0, t_idx=0)
     sample = data[sample_idx]
     x = sample[..., t_idx].to(device)
     y = sample[..., t_idx + 1].to(device)
-    grid_b = grid.to(device).unsqueeze(0)
+    grid_b = grid.to(device)
     x_in = torch.cat((x.unsqueeze(0).unsqueeze(-1), grid_b), dim=-1)
     with torch.no_grad():
         pred = model(x_in)
