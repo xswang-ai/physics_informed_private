@@ -285,7 +285,7 @@ def train_3d(args, config):
             output_dim=model_cfg.get('out_chans', 1),
             dim=model_cfg.get('dim', 128),
             n_layers=model_cfg.get('n_layers', 5),
-            path_size=model_cfg.get('path_size', 4),
+            patch_size=model_cfg.get('patch_size', 4),
         ).to(device)
     else:
         model = FNO2d(modes1=model_cfg['modes1'],
