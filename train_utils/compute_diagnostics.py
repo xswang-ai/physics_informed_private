@@ -309,6 +309,30 @@ def velocity_to_vorticity(ux_grid, uy_grid, Lx, Ly):
     vorticity_grid = np.fft.irfft2(omega_hat, s=(Nx, Ny))
     return vorticity_grid
 
+def velocity_from_vorticity(w_slice: torch.Tensor):
+            """Compute velocity field from vorticity for spectrum calculation."""
+            n = w_slice.shape[0]
+            k_max = n // 2
+            device_local = w_slice.device
+            freq = torch.cat(
+                (
+                    torch.arange(0, k_max, device=device_local),
+                    torch.arange(-k_max, 0, device=device_local),
+                )
+            )
+            kx = freq.view(-1, 1).repeat(1, n)
+            ky = freq.view(1, -1).repeat(n, 1)
+            lap = kx ** 2 + ky ** 2
+            lap[0, 0] = 1.0
+            w_hat = torch.fft.fft2(w_slice)
+            psi_hat = w_hat / lap
+            ux_hat = 1j * ky * psi_hat
+            uy_hat = -1j * kx * psi_hat
+            ux = torch.fft.ifft2(ux_hat).real
+            uy = torch.fft.ifft2(uy_hat).real
+            return ux, uy
+
+
 
 def compute_scalar_diagnostics(ux_grid, uy_grid, vorticity_grid, Lx, Ly):
     """

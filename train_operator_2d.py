@@ -1,15 +1,16 @@
+import os
 import yaml
 from argparse import ArgumentParser
 import torch
 import torch.nn.functional as F
 import math
 from torch.utils.data import DataLoader, random_split, TensorDataset, Dataset
+from torch.utils.tensorboard import SummaryWriter
 
 from solver.random_fields import GaussianRF
 from train_utils import Adam
+from train_utils.plot_utils import log_tensorboard_images_and_spectra
 from train_utils.datasets import NSLoader, online_loader, DarcyFlow, DarcyCombo, NSLoader2D
-from train_utils.train_3d import mixed_train
-from train_utils.train_2d import train_2d_operator
 from train_utils.losses import LpLoss
 from train_utils.utils import get_grid3d, torch2dgrid, save_checkpoint
 from models import FNO3d, FNO2d
@@ -42,10 +43,12 @@ def evaluate_3d(model, test_loader, device):
 def evaluate_step_ahead(model, test_loader, device, grid):
     """Evaluate one-step prediction u_t -> u_{t+1}."""
     lploss = LpLoss(size_average=True)
+
     model.eval()
     total = 0.0
     batches = 0
-    grid = grid.to(device).unsqueeze(0)
+    pred_plot = None
+    target_plot = None
     with torch.no_grad():
         for x, y in test_loader:
             x, y = x.to(device), y.to(device)
@@ -57,13 +60,16 @@ def evaluate_step_ahead(model, test_loader, device, grid):
             if pred.dim() == 4:
                 pred = pred.squeeze(-1)
             total += lploss(pred, y).item()
+            if pred_plot is None:
+                pred_plot = pred.clone()
+                target_plot = y.clone()
             batches += 1
     if batches == 0:
         return None
-    return total / batches
+    return total / batches, pred_plot, target_plot
 
 
-def train_step_ahead(model, train_loader, optimizer, scheduler, config, device, grid, use_tqdm=True):
+def train_step_ahead(model, train_loader, optimizer, scheduler, config, device, grid, test_loader=None, eval_step=100, use_tqdm=True, writer=None, model_name='fno2d'):
     """Train on one-step pairs (u_t, u_{t+1})."""
     lploss = LpLoss(size_average=True)
     epochs = config['train']['epochs']
@@ -94,13 +100,17 @@ def train_step_ahead(model, train_loader, optimizer, scheduler, config, device, 
         scheduler.step()
         avg = running / max(1, batches)
         print(f'Epoch {ep + 1}/{epochs}, train L2: {avg:.6f}')
-
+        if writer is not None:
+            writer.add_scalar('train/l2', avg, ep + 1)
         if use_tqdm:
-            pbar.set_description(
-                (
-                    f'Train L2: {avg:.6f}'
-                )
-            )
+            pbar.set_description((f'Train L2: {avg:.6f}'))
+
+        if ep % eval_step == 0:
+            test_l2, pred_plot, target_plot = evaluate_step_ahead(model, test_loader, device, grid)
+            print(f'Random test split relative L2: {test_l2:.6f}')
+            writer.add_scalar('eval/test_l2', test_l2, ep + 1)
+            if writer is not None:
+                log_tensorboard_images_and_spectra(writer, pred_plot.unsqueeze(-1), target_plot.unsqueeze(-1), ep + 1, 'vorticity', model_name)
 
 
 def build_synthetic_dataset(data_config, n_samples, step_ahead=False):
@@ -147,35 +157,23 @@ def build_synthetic_dataset(data_config, n_samples, step_ahead=False):
 def train_3d(args, config):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     data_config = config['data']
-    step_ahead_mode = 'datapath2' not in data_config
 
     # prepare dataloader for training with data (real or synthetic)
     if args.synthetic_samples > 0:
         full_dataset, S_data, T_data = build_synthetic_dataset(
-            data_config, args.synthetic_samples, step_ahead=step_ahead_mode)
+            data_config, args.synthetic_samples, step_ahead=True)
     else:
-        if not step_ahead_mode:
-            loader = NSLoader(datapath1=data_config['datapath'], datapath2=data_config['datapath2'],
-                              nx=data_config['nx'], nt=data_config['nt'],
-                              sub=data_config['sub'], sub_t=data_config['sub_t'],
-                              N=data_config['total_num'],
-                              t_interval=data_config['time_interval'])
-            # Build dataset and (optionally) split out a random test set
-            full_dataset = loader.make_dataset(data_config['n_sample'],
-                                               start=data_config['offset'],
-                                               train=True)
-            S_data, T_data = loader.S, loader.T
-        else:
-            n_sample = data_config.get('n_sample', data_config.get('n_samples', data_config['total_num']))
-            offset = data_config.get('offset', 0)
-            full_dataset = NSLoader2D(datapath1=data_config['datapath'],
-                                      nx=data_config['nx'], nt=data_config['nt'],
-                                      sub=data_config['sub'], sub_t=data_config['sub_t'],
-                                      N=data_config['total_num'],
-                                      t_interval=data_config['time_interval'],
-                                      n_samples=n_sample,
-                                      offset=offset)
-            S_data, T_data = full_dataset.S, 1
+
+        n_sample = data_config.get('n_sample', data_config.get('n_samples', data_config['total_num']))
+        offset = data_config.get('offset', 0)
+        full_dataset = NSLoader2D(datapath1=data_config['datapath'],
+                                    nx=data_config['nx'], nt=data_config['nt'],
+                                    sub=data_config['sub'], sub_t=data_config['sub_t'],
+                                    N=data_config['total_num'],
+                                    t_interval=data_config['time_interval'],
+                                    n_samples=n_sample,
+                                    offset=offset)
+        S_data, T_data = full_dataset.S, 1
     if args.test_ratio > 0:
         test_size = max(1, int(len(full_dataset) * args.test_ratio))
         if len(full_dataset) - test_size <= 0:
@@ -196,28 +194,17 @@ def train_3d(args, config):
     train_loader = DataLoader(train_set,
                               batch_size=config['train']['batchsize'],
                               shuffle=data_config['shuffle'])
-    if not step_ahead_mode:
-        # prepare dataloader for training with only equations
-        s2 = data_config.get('S2', S_data)
-        t2 = data_config.get('T2', T_data)
-        gr_sampler = GaussianRF(2, s2, 2 * math.pi, alpha=2.5, tau=7, device=device)
-        a_loader = online_loader(gr_sampler,
-                                 S=s2,
-                                 T=t2,
-                                 time_scale=data_config['time_interval'],
-                                 batchsize=config['train']['batchsize'])
     # create model
-    print(device)
+    print("device: ", device)
     model_cfg = config['model']
     model_name = model_cfg.get('name', 'fno2d').lower()
+    
     if model_name == 'hfs':
         model = ResUNet(in_c=3,
                         out_c=1,
                         target_params=model_cfg.get('target_params', 'medium'),
                         device=device).to(device)
     elif model_name in ['wno', 'wno2d']:
-        if not step_ahead_mode:
-            raise ValueError("WNO2d currently supports step-ahead mode (no datapath2).")
         dummy = torch.zeros(1, 1, S_data, S_data, device=device)
         model = WNO2d(in_channels=model_cfg.get('in_chans', 3),
                       out_channels=model_cfg.get('out_chans', 1),
@@ -225,8 +212,6 @@ def train_3d(args, config):
                       level=model_cfg.get('level', 3),
                       dummy_data=dummy).to(device)
     elif model_name in ['wavelet', 'wavelet2d', 'wavelet_transformer2d']:
-        if not step_ahead_mode:
-            raise ValueError("WaveletTransformer2D currently supports step-ahead mode (no datapath2).")
         patch_size = model_cfg.get('patch_size', (4, 4))
         if isinstance(patch_size, list):
             patch_size = tuple(patch_size)
@@ -241,8 +226,7 @@ def train_3d(args, config):
             learnable_scaling_factor=model_cfg.get('learnable_scaling_factor', False),
         ).to(device)
     elif model_name in ['inner_wavelet', 'inner_wavelet2d', 'inner_wavelet_transformer2d']:
-        if not step_ahead_mode:
-            raise ValueError("InnerWaveletTransformer2D currently supports step-ahead mode (no datapath2).")
+        
         model = InnerWaveletTransformer2D(
             wave=model_cfg.get('wave', 'haar'),
             input_dim=model_cfg.get('in_chans', 3),  # expecting u with grid concatenated
@@ -259,6 +243,7 @@ def train_3d(args, config):
                     #   pad_ratio=model_cfg.get('pad_ratio', [0., 0.])
                       ).to(device)
     print('model structure: ', model)
+    
     # Load from checkpoint
     if 'ckpt' in config['train']:
         ckpt_path = config['train']['ckpt']
@@ -271,97 +256,34 @@ def train_3d(args, config):
     scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer,
                                                      milestones=config['train']['milestones'],
                                                      gamma=config['train']['scheduler_gamma'])
-    if step_ahead_mode:
-        grid = torch2dgrid(S_data, S_data)
-        train_step_ahead(model,
-                         train_loader,
-                         optimizer,
-                         scheduler,
-                         config,
-                         device,
-                         grid)
-        save_checkpoint(config['train']['save_dir'],
-                        config['train']['save_name'],
-                        model, optimizer, scheduler)
-        if test_loader is not None:
-            test_l2 = evaluate_step_ahead(model, test_loader, device, grid)
-            print(f'Random test split relative L2: {test_l2:.6f}')
-    else:
-        mixed_train(model,
-                    train_loader,
-                    S_data, T_data,
-                    a_loader,
-                    s2, t2,
-                    optimizer,
-                    scheduler,
-                    config,
-                    device,
-                    log=args.log,
-                    project=config['log']['project'],
-                    group=config['log']['group'])
-
-        if test_loader is not None:
-            test_l2 = evaluate_3d(model, test_loader, device)
-            print(f'Random test split relative L2: {test_l2:.6f}')
 
 
-def train_2d(args, config):
-    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-    data_config = config['data']
+    save_dir = config['train']['save_dir'] if torch.cuda.is_available() else 'saved_models'
+    tensorboard_dir = config['train'].get('tensorboard_dir')
+    if tensorboard_dir is None:
+        tensorboard_dir = os.path.join(save_dir, 'tensorboard')
+    os.makedirs(tensorboard_dir, exist_ok=True)
+    writer = SummaryWriter(log_dir=tensorboard_dir)
 
-    dataset = DarcyFlow(data_config['datapath'],
-                        nx=data_config['nx'], sub=data_config['sub'],
-                        offset=data_config['offset'], num=data_config['n_sample'])
-    
-    train_loader = DataLoader(dataset, batch_size=config['train']['batchsize'], shuffle=True)
-    model_cfg = config['model']
-    model_name = model_cfg.get('name', 'fno2d').lower()
-    if model_name == 'hfs':
-        model = ResUNet(in_c=3,
-                        out_c=1,
-                        target_params=model_cfg.get('target_params', 'medium'),
-                        device=device).to(device)
-    elif model_name in ['wno', 'wno2d']:
-        raise ValueError("WNO2d is not configured for Darcy 2D training in this script.")
-    elif model_name in ['wavelet', 'wavelet2d', 'wavelet_transformer2d']:
-        patch_size = model_cfg.get('patch_size', (4, 4))
-        if isinstance(patch_size, list):
-            patch_size = tuple(patch_size)
-        model = WaveletTransformer2D(
-            wave=model_cfg.get('wave', 'haar'),
-            in_chans=model_cfg.get('in_chans', 3),
-            out_chans=model_cfg.get('out_chans', 1),
-            dim=model_cfg.get('dim', 128),
-            depth=model_cfg.get('depth', 4),
-            patch_size=patch_size,
-            patch_stride=model_cfg.get('patch_stride', 2),
-            learnable_scaling_factor=model_cfg.get('learnable_scaling_factor', False),
-        ).to(device)
-    else:
-        model = FNO2d(modes1=model_cfg['modes1'],
-                      modes2=model_cfg['modes2'],
-                      fc_dim=model_cfg['fc_dim'],
-                      layers=model_cfg['layers'],
-                      act=model_cfg['act'], 
-                      pad_ratio=model_cfg.get('pad_ratio', [0., 0.])).to(device)
-    # Load from checkpoint
-    if 'ckpt' in config['train']:
-        ckpt_path = config['train']['ckpt']
-        ckpt = torch.load(ckpt_path)
-        model.load_state_dict(ckpt['model'])
-        print('Weights loaded from %s' % ckpt_path)
-
-    optimizer = Adam(model.parameters(), betas=(0.9, 0.999),
-                     lr=config['train']['base_lr'])
-    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer,
-                                                     milestones=config['train']['milestones'],
-                                                     gamma=config['train']['scheduler_gamma'])
-    train_2d_operator(model,
-                      train_loader,
-                      optimizer, scheduler,
-                      config, rank=0, log=args.log,
-                      project=config['log']['project'],
-                      group=config['log']['group'])
+    grid = torch2dgrid(S_data, S_data)
+    train_step_ahead(model,
+                        train_loader,
+                        optimizer,
+                        scheduler,
+                        config,
+                        device,
+                        grid,
+                        test_loader=test_loader,
+                        writer=writer,
+                        model_name=model_name)
+    save_checkpoint(config['train']['save_dir'],
+                    config['train']['save_name'],
+                    model, optimizer, scheduler)
+    if test_loader is not None:
+        test_l2 = evaluate_step_ahead(model, test_loader, device, grid)
+        print(f'Random test split relative L2: {test_l2:.6f}')
+        writer.add_scalar('eval/test_l2', test_l2, config['train']['epochs'])
+    writer.close()
 
 
 if __name__ == '__main__':
@@ -383,7 +305,4 @@ if __name__ == '__main__':
     with open(config_file, 'r') as stream:
         config = yaml.load(stream, yaml.FullLoader)
 
-    if 'name' in config['data'] and config['data']['name'] == 'Darcy':
-        train_2d(args, config)
-    else:
-        train_3d(args, config)
+    train_3d(args, config)
