@@ -650,5 +650,5 @@ class NSLoader2D(Dataset):
 
     def __getitem__(self, idx):
         sample = self.data[idx]
-        t = np.random.randint(0, self.max_time_index)
+        t = np.random.randint(0, self.max_time_index) if self.train else  0
         return sample[..., t], sample[..., t + 1]
