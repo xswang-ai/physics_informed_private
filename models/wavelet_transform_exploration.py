@@ -1,4 +1,5 @@
 import math
+from matplotlib.legend import Patch
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -199,21 +200,21 @@ class WaveletBlock(nn.Module):
         return x
 
 class InnerWaveletTransformer2D(nn.Module):
-    def __init__(self, wave='haar', input_dim=3, output_dim=3, dim=64, n_layers=5, add_grid=False, path_size=None, **kwargs):
+    def __init__(self, wave='haar', input_dim=3, output_dim=3, dim=64, n_layers=5, add_grid=False, patch_size=None, **kwargs):
         super().__init__(**kwargs)
         self.add_grid = add_grid
         self.n_layers = n_layers
-        self.path_size = path_size
-        if path_size is None:
+        self.patch_size = patch_size
+        if patch_size is None:
             self.input_proj = nn.Linear(input_dim, dim)
             self.output_proj = nn.Sequential(nn.Linear(dim, dim//2),
                                             nn.GELU(),
                                             nn.Linear(dim//2, output_dim))
         else:
-            self.input_proj = nn.Sequential(nn.Conv2d(input_dim, dim, kernel_size=path_size, stride=path_size),
+            self.input_proj = nn.Sequential(nn.Conv2d(input_dim, dim, kernel_size=patch_size, stride=patch_size),
                                             nn.BatchNorm2d(dim),
                                             nn.GELU())
-            self.output_proj = nn.Sequential(nn.ConvTranspose2d(dim, dim//2, kernel_size=path_size, stride=path_size),
+            self.output_proj = nn.Sequential(nn.ConvTranspose2d(dim, dim//2, kernel_size=patch_size, stride=patch_size),
                                             nn.GELU(),
                                             nn.Conv2d(dim//2, output_dim, kernel_size=1, stride=1))
         self.layers = nn.ModuleList([])
@@ -250,16 +251,20 @@ class InnerWaveletTransformer2D(nn.Module):
         if self.add_grid:
             x_grid = self.get_grid(x)
             x = torch.cat((x, x_grid), dim=-1)
-        if self.path_size is not None:
+        if self.patch_size is not None:
             x = rearrange(x, 'b h w c -> b c h w')
-        x = self.input_proj(x)
-        h, w = x.shape[1], x.shape[2]
-        x = rearrange(x, 'b h w c -> b (h w) c')
+            x = self.input_proj(x)
+            h, w = x.shape[-2], x.shape[-1]
+            x = rearrange(x, 'b c h w -> b (h w) c')
+        else:
+            x = self.input_proj(x)
+            h, w = x.shape[1], x.shape[2]
+            x = rearrange(x, 'b h w c -> b (h w) c')
         for ln1, wavelet_block, ln2, ff in self.layers:
             x = wavelet_block(ln1(x), h, w) + x
             x = ln2(ff(x)) + x
         # x = self.norm(x)
-        if self.path_size is None:
+        if self.patch_size is None:
             x = self.output_proj(x)
             x = rearrange(x, 'b (h w) c-> b h w c', h=h, w=w)
         else:
@@ -298,7 +303,7 @@ if __name__ == "__main__":
     #     print("backward done")
 
     x = torch.randn(2, 64, 64, 3)
-    model = InnerWaveletTransformer2D(input_dim=3, output_dim=3, dim=256, n_layers=4)
+    model = InnerWaveletTransformer2D(input_dim=3, output_dim=3, dim=256, n_layers=4, patch_size=4)
     print("number of parameters:", model.count_parameters())
     with torch.autograd.set_detect_anomaly(True):
         output = model(x)
