@@ -109,7 +109,7 @@ def get_fixed_test_pair(model, test_source, grid, device, sample_idx=0, t_idx=0)
     return pred, y
 
 
-def train_step_ahead(model, train_loader, optimizer, scheduler, config, device, grid, test_loader=None, eval_step=100, use_tqdm=True, writer=None, model_name='fno2d'):
+def train_step_ahead(model, train_loader, optimizer, scheduler, config, device, grid, test_loader=None, eval_step=100,save_step=1000, use_tqdm=True, writer=None, model_name='fno2d'):
     """Train on one-step pairs (u_t, u_{t+1})."""
     lploss = LpLoss(size_average=True)
     epochs = config['train']['epochs']
@@ -158,6 +158,11 @@ def train_step_ahead(model, train_loader, optimizer, scheduler, config, device, 
                                                        ep + 1,
                                                        'vorticity',
                                                        model_name)
+
+        if ep % save_step == 0 and ep > 0:
+            save_checkpoint(config['train']['save_dir'],
+                            config['train']['save_name'].replace('.pt', f'_{ep + 1}.pt'),
+                            model, optimizer, scheduler)
 
 
 def build_synthetic_dataset(data_config, n_samples, step_ahead=False):
@@ -328,7 +333,7 @@ def train_3d(args, config):
                     config['train']['save_name'],
                     model, optimizer, scheduler)
     if test_loader is not None:
-        test_l2, _, _ = evaluate_step_ahead(model, test_loader, device, grid)
+        test_l2, _, _ = evaluate_step_ahead(model, test_loader, device, grid.to(device).unsqueeze(0))
         print(f'Random test split relative L2: {test_l2:.6f}')
         if writer is not None:
             writer.add_scalar('eval/test_l2', test_l2, config['train']['epochs'])
