@@ -108,9 +108,10 @@ class WNO2d(nn.Module):
         self.fc1 = nn.Linear(self.width, 128)
         self.fc2 = nn.Linear(128, out_channels)
 
-    def forward(self, x):
-        grid = self.get_grid(x.shape, x.device)
-        x = torch.cat((x, grid), dim=-1)
+    def forward(self, x, use_grid=False):
+        if not use_grid:
+            grid = self.get_grid(x.shape, x.device)
+            x = torch.cat((x, grid), dim=-1)
         x = self.fc0(x)
         x = x.permute(0, 3, 1, 2)
         # x = F.pad(x, [0,self.padding, 0,self.padding]) 
