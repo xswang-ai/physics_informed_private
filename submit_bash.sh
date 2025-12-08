@@ -1,7 +1,7 @@
 #!/bin/bash
 
 
-#SBATCH --time=03:00:00           # Increased time for longer training with larger batches
+#SBATCH --time=05:00:00           # Increased time for longer training with larger batches
 
 #SBATCH --mem=256gb
 #SBATCH --nodes=1
@@ -39,7 +39,10 @@ export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
 # python3 train_operator_2d.py --config_path configs/pretrain/Customized-Re500-InnerWavelet2D-1s-100.yaml --test_ratio 0.25
 
-python3 train_operator_2d.py --config_path configs/pretrain/Customized-Re500-InnerWaveletPatching2d-1s-100.yaml --test_ratio 0.25
+# python3 train_operator_2d.py --config_path configs/pretrain/Customized-Re500-InnerWaveletPatching2d-1s-100.yaml --test_ratio 0.25
+
+python3 train_operator_2d.py --config_path configs/pretrain/Customized-Re500-SAOT2d-1s-100.yaml --test_ratio 0.25
+
 # python3 eval_operator_2d.py --config_path configs/pretrain/Customized-Re500-WNO2d-1s-100.yaml
 
 
