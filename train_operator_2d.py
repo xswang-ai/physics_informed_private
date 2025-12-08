@@ -281,7 +281,7 @@ def train_3d(args, config):
                       level=model_cfg.get('level', 3),
                       dummy_data=dummy).to(device)
     elif model_name in ['wavelet', 'wavelet2d', 'wavelet_transformer2d']:
-        patch_size = model_cfg.get('patch_size', (4, 4))
+        patch_size = model_cfg.get('patch_size', None)
         if isinstance(patch_size, list):
             patch_size = tuple(patch_size)
         model = WaveletTransformer2D(

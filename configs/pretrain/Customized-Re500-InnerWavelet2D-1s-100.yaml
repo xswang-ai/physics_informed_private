@@ -17,7 +17,6 @@ data:
 model:
   name: inner_wavelet2d
   wave: haar
-  patch_size: None
   dim: 256
   n_layers: 4
   in_chans: 3    # u plus (x,y) grid concatenated in train loop
