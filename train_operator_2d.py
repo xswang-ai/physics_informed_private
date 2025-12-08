@@ -14,7 +14,7 @@ from train_utils.datasets import NSLoader, online_loader, DarcyFlow, DarcyCombo,
 from train_utils.losses import LpLoss
 from train_utils.utils import get_grid3d, torch2dgrid, save_checkpoint
 from models import FNO3d, FNO2d
-from models.wavelet_transform_exploration import WaveletTransformer2D, InnerWaveletTransformer2D
+from models.wavelet_transform_exploration import WaveletTransformer2D, InnerWaveletTransformer2D, MultiscaleWaveletTransformer2D
 from models.hfs import ResUNet
 from models.wno import WNO2d
 from models.saot import SAOTModel
@@ -299,6 +299,15 @@ def train_3d(args, config):
         model = InnerWaveletTransformer2D(
             wave=model_cfg.get('wave', 'haar'),
             input_dim=model_cfg.get('in_chans', 3),  # expecting u with grid concatenated
+            output_dim=model_cfg.get('out_chans', 1),
+            dim=model_cfg.get('dim', 128),
+            n_layers=model_cfg.get('n_layers', 5),
+            patch_size= model_cfg.get('patch_size', None),
+        ).to(device)
+    elif model_name in ['multiscale_wavelet', 'multiscale_wavelet2d', 'multiscale_wavelet_transformer2d']:
+        model = MultiscaleWaveletTransformer2D(
+            wave=model_cfg.get('wave', 'haar'),
+            input_dim=model_cfg.get('in_chans', 3),
             output_dim=model_cfg.get('out_chans', 1),
             dim=model_cfg.get('dim', 128),
             n_layers=model_cfg.get('n_layers', 5),

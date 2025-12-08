@@ -73,6 +73,7 @@ class IDWT_Function(Function):
         ctx.save_for_backward(filters)
         ctx.shape = x.shape
         ctx.target_size = target_size
+        ctx.is_cat_format = (x.dim() == 4)
 
         B, H, W = x.shape[0], x.shape[-2], x.shape[-1]
 
@@ -100,7 +101,12 @@ class IDWT_Function(Function):
         if ctx.needs_input_grad[0]:
             filters = ctx.saved_tensors
             filters = filters[0]
-            C = ctx.shape[2]
+            if ctx.is_cat_format:
+                # Input was (B, 4*C, H, W) so recover channel count from original shape
+                C = ctx.shape[1] // 4
+            else:
+                # Input was stacked (B, 4, C, H, W)
+                C = ctx.shape[2]
             
             # If we cropped in forward pass, we need to pad dx back to uncropped size
             if ctx.target_size is not None:
@@ -120,6 +126,11 @@ class IDWT_Function(Function):
             x_hl = torch.nn.functional.conv2d(dx, w_hl.unsqueeze(1).expand(C, -1, -1, -1), stride = 2, groups = C)
             x_hh = torch.nn.functional.conv2d(dx, w_hh.unsqueeze(1).expand(C, -1, -1, -1), stride = 2, groups = C)
             dx = torch.stack([x_ll, x_lh, x_hl, x_hh], dim=1)
+            # Restore original layout to keep autograd shapes consistent with the forward input
+            if ctx.is_cat_format:
+                dx = dx.reshape(ctx.shape[0], 4 * C, dx.shape[-2], dx.shape[-1])
+            else:
+                dx = dx.reshape(ctx.shape[0], 4, C, dx.shape[-2], dx.shape[-1])
         return dx, None, None
 
 class IDWT_2D(nn.Module):
