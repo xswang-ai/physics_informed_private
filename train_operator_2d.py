@@ -17,6 +17,7 @@ from models import FNO3d, FNO2d
 from models.wavelet_transform_exploration import WaveletTransformer2D, InnerWaveletTransformer2D
 from models.hfs import ResUNet
 from models.wno import WNO2d
+from models.saot import SAOTModel
 from tqdm import tqdm
 
 
@@ -287,6 +288,22 @@ def train_3d(args, config):
             n_layers=model_cfg.get('n_layers', 5),
             patch_size=model_cfg.get('patch_size', 4),
         ).to(device)
+    elif model_name in ['saot', 'saot2d']:
+        model = SAOTModel(space_dim=model_cfg.get('space_dim', 2),
+                        n_layers=model_cfg.get('n_layers', 3),
+                        n_hidden=model_cfg.get('n_hidden', 64)  ,
+                        dropout=model_cfg.get('dropout', 0.0),
+                        n_head=model_cfg.get('n_head', 4),
+                        Time_Input=model_cfg.get('Time_Input', False),
+                        mlp_ratio=model_cfg.get('mlp_ratio', 1),
+                        fun_dim=model_cfg.get('fun_dim', 1),
+                        out_dim=model_cfg.get('out_dim', 1),
+                        H = S_data,
+                        W = S_data,
+                        slice_num=model_cfg.get('slice_num', 32),
+                        ref=model_cfg.get('ref', 8),
+                        unified_pos=model_cfg.get('unified_pos', 0),
+                        is_filter=model_cfg.get('is_filter', True)).to(device)
     else:
         model = FNO2d(modes1=model_cfg['modes1'],
                       modes2=model_cfg['modes2'],
