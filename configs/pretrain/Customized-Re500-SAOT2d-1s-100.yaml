@@ -40,7 +40,7 @@ train:
   ic_loss: 0.0
   f_loss: 0.0
   xy_loss: 1.0
-  save_dir: /scratch3/wan410/operator_learning_model/Re500-SAOT2d-1s-100
+  save_dir: /scratch3/wan410/operator_learning_model/Re500-SAOT2d-1s-100/
   save_name: SAOT2d-Re500-1s-100.pt
   data_iter: 1
   eqn_iter: 0
