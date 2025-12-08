@@ -109,15 +109,31 @@ def get_fixed_test_pair(model, test_source, grid, device, sample_idx=0, t_idx=0)
     return pred, y.unsqueeze(0)
 
 
-def train_step_ahead(model, train_loader, optimizer, scheduler, config, device, grid, test_loader=None, eval_step=100,save_step=1000, use_tqdm=True, writer=None, model_name='fno2d'):
+def _parse_epoch_from_name(save_name, fname):
+    """Infer epoch from fname given a canonical save_name."""
+    stem, ext = os.path.splitext(save_name)
+    if fname == save_name:
+        return 0
+    if not fname.startswith(stem + "_") or not fname.endswith(ext):
+        return -1
+    suffix = fname[len(stem) + 1:-len(ext)]
+    try:
+        return int(suffix)
+    except ValueError:
+        return -1
+
+def train_step_ahead(model, train_loader, optimizer, scheduler, config, device, grid, test_loader=None, eval_step=100,save_step=1000, use_tqdm=True, writer=None, model_name='fno2d', start_ep=0):
     """Train on one-step pairs (u_t, u_{t+1})."""
     lploss = LpLoss(size_average=True)
     epochs = config['train']['epochs']
     grid = grid.to(device).unsqueeze(0)
+    if start_ep >= epochs:
+        print(f'start_ep ({start_ep}) >= epochs ({epochs}); skipping training loop.')
+        return
     if use_tqdm:
-        pbar = tqdm(range(epochs), dynamic_ncols=True, smoothing=0.1)
+        pbar = tqdm(range(start_ep, epochs), dynamic_ncols=True, smoothing=0.1)
     else:
-        pbar = range(epochs)
+        pbar = range(start_ep, epochs)
     for ep in pbar:
         model.train()
         running = 0.0
@@ -314,12 +330,7 @@ def train_3d(args, config):
                       ).to(device)
     print('model structure: ', model)
     
-    # Load from checkpoint
-    if 'ckpt' in config['train']:
-        ckpt_path = config['train']['ckpt']
-        ckpt = torch.load(ckpt_path)
-        model.load_state_dict(ckpt['model'])
-        print('Weights loaded from %s' % ckpt_path)
+    
     # create optimizer and learning rate scheduler
     optimizer = Adam(model.parameters(), betas=(0.9, 0.999),
                      lr=config['train']['base_lr'])
@@ -327,7 +338,23 @@ def train_3d(args, config):
                                                      milestones=config['train']['milestones'],
                                                      gamma=config['train']['scheduler_gamma'])
 
-
+    start_ep = 0
+    if args.resume_training:
+        ckpt_path = os.path.join(config['train']['save_dir'], args.resume_ckpt)
+        parsed_ep = _parse_epoch_from_name(config['train']['save_name'], args.resume_ckpt)
+        if ckpt_path is not None and os.path.exists(ckpt_path):
+            ckpt = torch.load(ckpt_path, map_location=device)
+            model.load_state_dict(ckpt['model'])
+            if ckpt.get('optim') is not None:
+                optimizer.load_state_dict(ckpt['optim'])
+            if ckpt.get('scheduler') is not None:
+                scheduler.load_state_dict(ckpt['scheduler'])
+                sched_epoch = scheduler.state_dict().get('last_epoch', -1) + 1
+                parsed_ep = max(parsed_ep, sched_epoch)
+            start_ep = max(parsed_ep, 0)
+            print(f'Weights loaded from {ckpt_path}, resuming at epoch {start_ep + 1}')
+        else:
+            print('resume_training requested but no checkpoint found; starting from scratch.')
     save_dir = config['train']['save_dir'] if torch.cuda.is_available() else 'saved_models'
     tensorboard_dir = config['train'].get('tensorboard_dir')
     if tensorboard_dir is None:
@@ -345,7 +372,8 @@ def train_3d(args, config):
                         grid,
                         test_loader=test_loader,
                         writer=writer,
-                        model_name=model_name)
+                        model_name=model_name,
+                        start_ep=start_ep)
     save_checkpoint(config['train']['save_dir'],
                     config['train']['save_name'],
                     model, optimizer, scheduler)
@@ -379,6 +407,8 @@ if __name__ == '__main__':
                         help='Seed for the random test split')
     parser.add_argument('--synthetic_samples', type=int, default=0,
                         help='Use random synthetic data with this many samples to sanity-check the 3D pipeline')
+    parser.add_argument('--resume_training', action='store_true', help='Resume training from the last checkpoint')
+    parser.add_argument('--resume_ckpt', type=str, default=None, help='Specific checkpoint filename to resume from (in save_dir)')
     args = parser.parse_args()
 
     config_file = args.config_path
