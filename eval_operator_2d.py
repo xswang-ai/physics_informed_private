@@ -198,7 +198,7 @@ def main():
     
     # Save prediction and energy plots for the first example
     if example['truth'] is not None:
-        plot_dir = config.get('test', {}).get('plot_dir')
+        plot_dir = config.get('test', {}).get('load_dir')
         pred_dir = os.path.join(plot_dir, 'saved_plots', 'predictions')
         spec_dir = os.path.join(plot_dir, 'saved_plots', 'energy')
         os.makedirs(pred_dir, exist_ok=True)
