@@ -46,7 +46,7 @@ export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 python3 train_operator_2d.py --config_path configs/pretrain/Customized-Re500-SAOT2d-1s-100.yaml --test_ratio 0.25 --resume_training --resume_ckpt SAOT2d-Re500-1s-100_63001.pt
 
 
-python3 eval_operator_2d.py --config_path configs/test/Customized-Re500-05s-test.yaml
+python3 eval_operator_2d.py --config_path configs/test/Customized-Re500-FNO2d-05s-test.yaml
 
 
 

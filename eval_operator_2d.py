@@ -35,11 +35,11 @@ def load_ns_sequences(data_config):
 
     data1 = np.load(datapath1)
     data1 = torch.tensor(data1, dtype=torch.float)[..., ::sub_t, ::sub, ::sub]
-
+    print("data1 shape: ", data1.shape)
     if t_interval == 0.5:
         # subselect time to 1s 
         # data1 = NSLoader2D.extract(data1)
-        sub_t = 1//t_interval
+        sub_t = int(1//t_interval)
         data1 = data1[..., ::sub_t, ...]
         
     part1 = data1.permute(0, 2, 3, 1)  # (N, X, Y, T)
