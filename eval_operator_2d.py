@@ -35,24 +35,24 @@ def load_ns_sequences(data_config):
 
     data1 = np.load(datapath1)
     data1 = torch.tensor(data1, dtype=torch.float)[..., ::sub_t, ::sub, ::sub]
-    print("data1 shape: ", data1.shape)
+    # print("data1 shape: ", data1.shape)
     if t_interval == 0.5:
         # subselect time to 1s 
         # data1 = NSLoader2D.extract(data1)
         sub_t = int(1//t_interval)
         data1 = data1[:, ::sub_t, ...]
-        print("data1 shape: ", data1.shape)
+        # print("data1 shape: ", data1.shape)
         
     part1 = data1.permute(0, 2, 3, 1)  # (N, X, Y, T)
     data = part1
-    print("data shape: ", data.shape)
+    # print("data shape: ", data.shape)
 
     offset = data_config.get('offset', 0)
     n_sample = data_config.get('n_sample', data_config.get('n_samples', data_config.get('total_num', data.shape[0])))
     end = min(data.shape[0], offset + n_sample)
     data = data[offset:end]
-    print("final data shape: ", data.shape)
-    exit(-1)
+    print("final data shape: ", data.shape) # (N, X, Y, T)
+    # exit(-1)
     return data, S, T
 
 
@@ -104,7 +104,7 @@ def main():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     data_config = config['data']
     model_cfg = config['model']
-    sequences, S, T = load_ns_sequences(data_config)
+    sequences, S_data, T_data = load_ns_sequences(data_config)
 
     model_name = model_cfg.get('name', 'fno2d').lower()
     
@@ -181,14 +181,8 @@ def main():
 
     print("total number of parameters: ", sum(p.numel() for p in model.parameters()))
 
-    base_ckpt_root = '/scratch3/wan410/operator_learning_model/pino_ns2d/checkpoints'
-    train_cfg = config.get('train', {})
-    default_ckpt_path = os.path.join(
-        base_ckpt_root,
-        train_cfg.get('save_dir', 'default'),
-        train_cfg.get('save_name', 'model.pt')
-    )
-    ckpt_path = config.get('test', {}).get('ckpt', default_ckpt_path)
+
+    ckpt_path = config.get('test', {}).get('ckpt')
     if os.path.exists(ckpt_path):
         ckpt = torch.load(ckpt_path, map_location=device)
         model.load_state_dict(ckpt['model'])
@@ -196,10 +190,12 @@ def main():
     else:
         print(f'Checkpoint not found at {ckpt_path}; evaluating with randomly initialized weights.')
 
-    print(f'Evaluating on {sequences.shape[0]} samples at resolution {S}x{S} for {T} steps.')
+    print(f'Evaluating on {sequences.shape[0]} samples at resolution {S_data}x{S_data} for {T_data} steps.')
     l2, example = autoregressive_eval(model, sequences, device)
     print(f'Relative L2 over rollout: {l2:.6f}')
 
+
+    exit(-1)
     # Save prediction and energy plots for the first example
     if example['truth'] is not None:
         plot_dir = config.get('log', {}).get(
