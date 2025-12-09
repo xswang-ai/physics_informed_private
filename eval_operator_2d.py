@@ -237,30 +237,30 @@ def main():
             plt.close(fig)
 
             # Spectral energy comparison
-            try:
-                ux_pred, uy_pred = velocity_from_vorticity(pred_frame.float())
-                ux_true, uy_true = velocity_from_vorticity(truth_frame.float())
-                k_bins, Ek_pred = compute_spectra_torch(ux_pred, uy_pred, 2 * math.pi, 2 * math.pi)
-                _, Ek_true = compute_spectra_torch(ux_true, uy_true, 2 * math.pi, 2 * math.pi)
+            
+            ux_pred, uy_pred = velocity_from_vorticity(pred_frame.float())
+            ux_true, uy_true = velocity_from_vorticity(truth_frame.float())
+            k_bins, Ek_pred = compute_spectra_torch(ux_pred, uy_pred, 2 * math.pi, 2 * math.pi)
+            _, Ek_true = compute_spectra_torch(ux_true, uy_true, 2 * math.pi, 2 * math.pi)
 
-                k_np = k_bins.cpu().numpy()
-                Ek_pred_np = Ek_pred.cpu().numpy()
-                Ek_true_np = Ek_true.cpu().numpy()
+            k_np = k_bins.cpu().numpy()
+            Ek_pred_np = Ek_pred.cpu().numpy()
+            Ek_true_np = Ek_true.cpu().numpy()
 
-                valid_mask = range(1, min(len(k_np), S // 2))
-                fig_spec, ax_spec = plt.subplots(1, 1, figsize=(6, 4))
-                ax_spec.loglog(k_np[valid_mask], Ek_true_np[valid_mask], label='Truth', linewidth=1)
-                ax_spec.loglog(k_np[valid_mask], Ek_pred_np[valid_mask], '--', label='Prediction', linewidth=1)
-                ax_spec.set_xlabel('Wavenumber k')
-                ax_spec.set_ylabel('Energy E(k)')
-                ax_spec.set_title(f'Spectral Energy (T={t_raw})')
-                ax_spec.grid(True, which='both', alpha=0.3)
-                ax_spec.legend()
-                spec_plot_path = os.path.join(spec_dir, f'ns_spectral_energy_t{t_raw}.png')
-                fig_spec.savefig(spec_plot_path, dpi=150, bbox_inches='tight')
-                plt.close(fig_spec)
-            except Exception as exc:  # noqa: BLE001
-                print(f'Warning: failed to create spectral energy plot at T={t_raw}: {exc}')
+            valid_mask = range(1, min(len(k_np), S // 2))
+            fig_spec, ax_spec = plt.subplots(1, 1, figsize=(6, 4))
+            ax_spec.loglog(k_np[valid_mask], Ek_true_np[valid_mask], label='Truth', linewidth=1)
+            ax_spec.loglog(k_np[valid_mask], Ek_pred_np[valid_mask], '--', label='Prediction', linewidth=1)
+            ax_spec.set_xlabel('Wavenumber k')
+            ax_spec.set_ylabel('Energy E(k)')
+            ax_spec.set_title(f'Spectral Energy (T={t_raw})')
+            ax_spec.grid(True, which='both', alpha=0.3)
+            ax_spec.legend()
+            spec_plot_path = os.path.join(spec_dir, f'ns_spectral_energy_t{t_raw}.png')
+            fig_spec.savefig(spec_plot_path, dpi=150, bbox_inches='tight')
+            plt.close(fig_spec)
+            # except Exception as exc:  # noqa: BLE001
+            #     print(f'Warning: failed to create spectral energy plot at T={t_raw}: {exc}')
 
 
 if __name__ == '__main__':
