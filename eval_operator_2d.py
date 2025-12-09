@@ -269,5 +269,5 @@ def main():
                 print(f'Warning: failed to create spectral energy plot at T={t_raw}: {exc}')
 
 
-# if __name__ == '__main__':
-#     main()
+if __name__ == '__main__':
+    main()
