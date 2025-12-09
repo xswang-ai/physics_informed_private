@@ -138,7 +138,7 @@ def build_animation(train_t, train_e, test_t, test_e, output_path: str, dpi: int
     ax.grid(True, alpha=0.3)
 
     frames = max(len(train_t), len(test_t))
-
+    print("train_t: ", train_t, "train_e: ", train_e, "test_t: ", test_t, "test_e: ", test_e)
     def init():
         for artist in (line_train, line_test, marker_train, marker_test):
             artist.set_data([], [])
