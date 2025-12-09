@@ -1,0 +1,33 @@
+data:
+  datapath: '/scratch3/wan410/operator_learning_data/pino_ns2d/NS_Re500_s256_T100_test.npy'
+  Re: 500
+  total_num: 100
+  offset: 0
+  n_sample: 100
+  time_interval: 0.5
+  nx: 256
+  nt: 128
+  sub: 4
+  sub_t: 1
+  shuffle: False
+
+model:
+  name: inner_wavelet2d
+  wave: haar
+  dim: 256
+  n_layers: 4
+  in_chans: 3    # u plus (x,y) grid concatenated in train loop
+  out_chans: 1
+
+test:
+  batchsize: 100
+  load_dir: '/scratch3/wan410/operator_learning_model/Re500-InnerWavelet2d-1s-100'
+  ckpt: 'InnerWavelet2d-Re500-1s-100.pt'
+  
+log:
+  project: 'PINO-None'
+  group: 'eval'
+
+
+
+
