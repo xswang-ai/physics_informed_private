@@ -19,9 +19,9 @@ model:
   fc_dim: 128
 
 test:
-  batchsize: 1
-  ckpt: '/scratch3/wan410/operator_learning_model/pino_ns2d/checkpoints/Re500-FNO-100/FNO-Re500-1s-100-ep10000.pt'
-  max_time_steps: 65
+  batchsize: 100
+  ckpt: '/scratch3/wan410/operator_learning_model/Re500-FNO2d-1s-100/FNO2d-Re500-1s-100.pt'
+
   
 log:
   project: 'PINO-None'
