@@ -327,8 +327,6 @@ class MultiscaleWaveletTransformer2D(nn.Module):
                 FeedForward(new_dim, new_dim*4)
                 ])
             
-
-                
             self.dec_layers.append(nn.ModuleList([up_layer, attn_layer]))
 
     def get_grid(self, x):

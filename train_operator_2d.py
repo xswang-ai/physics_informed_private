@@ -391,14 +391,6 @@ def train_3d(args, config):
         print(f'Random test split relative L2: {test_l2:.6f}')
         if writer is not None:
             writer.add_scalar('eval/test_l2', test_l2, config['train']['epochs'])
-            fixed_pred, fixed_target = get_fixed_test_pair(model, test_loader, grid, device, sample_idx=0, t_idx=0)
-            if fixed_pred is not None:
-                log_tensorboard_images_and_spectra(writer,
-                                                   fixed_pred.unsqueeze(-1),
-                                                   fixed_target.unsqueeze(-1),
-                                                   config['train']['epochs'],
-                                                   'vorticity',
-                                                   model_name)
     if writer is not None:
         writer.close()
 
