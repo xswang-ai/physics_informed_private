@@ -4,10 +4,13 @@ import numpy as np
 from argparse import ArgumentParser
 from torch.utils.data import DataLoader, TensorDataset
 
-from models import FNO2d
+from baselines import data
+from models import FNO3d, FNO2d
+from models.wavelet_transform_exploration import WaveletTransformer2D, InnerWaveletTransformer2D, MultiscaleWaveletTransformer2D
 from models.hfs import ResUNet
-from models.wavelet_transform_exploration import WaveletTransformer2D
 from models.wno import WNO2d
+from models.saot import SAOTModel
+
 from train_utils.losses import LpLoss
 from train_utils.utils import get_grid3d, torch2dgrid
 from train_utils.datasets import NSLoader2D
@@ -26,31 +29,29 @@ def load_ns_sequences(data_config):
     nt = data_config['nt']
     t_interval = data_config.get('time_interval', 1.0)
     datapath1 = data_config['datapath']
-    datapath2 = data_config.get('datapath2', None)
 
     S = nx // sub
     T = int(nt * t_interval) // sub_t + 1
 
     data1 = np.load(datapath1)
     data1 = torch.tensor(data1, dtype=torch.float)[..., ::sub_t, ::sub, ::sub]
-    if datapath2 is not None:
-        data2 = np.load(datapath2)
-        data2 = torch.tensor(data2, dtype=torch.float)[..., ::sub_t, ::sub, ::sub]
+
     if t_interval == 0.5:
-        data1 = NSLoader2D.extract(data1)
-        if datapath2 is not None:
-            data2 = NSLoader2D.extract(data2)
+        # subselect time to 1s 
+        # data1 = NSLoader2D.extract(data1)
+        sub_t = 1//t_interval
+        data1 = data1[..., ::sub_t, ...]
+        
     part1 = data1.permute(0, 2, 3, 1)  # (N, X, Y, T)
-    if datapath2 is not None:
-        part2 = data2.permute(0, 2, 3, 1)
-        data = torch.cat((part1, part2), dim=0)
-    else:
-        data = part1
+    data = part1
+    print("data shape: ", data.shape)
 
     offset = data_config.get('offset', 0)
     n_sample = data_config.get('n_sample', data_config.get('n_samples', data_config.get('total_num', data.shape[0])))
     end = min(data.shape[0], offset + n_sample)
     data = data[offset:end]
+    print("final data shape: ", data.shape)
+    exit(-1)
     return data, S, T
 
 
@@ -90,6 +91,7 @@ def autoregressive_eval(model, sequences, device):
     return total / max(1, batches), example
 
 
+
 def main():
     parser = ArgumentParser(description='Evaluate 2D operator autoregressively')
     parser.add_argument('--config_path', type=str, help='Path to the configuration file')
@@ -104,13 +106,21 @@ def main():
     sequences, S, T = load_ns_sequences(data_config)
 
     model_name = model_cfg.get('name', 'fno2d').lower()
+    
     if model_name == 'hfs':
         model = ResUNet(in_c=3,
                         out_c=1,
                         target_params=model_cfg.get('target_params', 'medium'),
                         device=device).to(device)
+    elif model_name in ['wno', 'wno2d']:
+        dummy = torch.zeros(1, 1, S_data, S_data, device=device)
+        model = WNO2d(in_channels=model_cfg.get('in_chans', 3),
+                      out_channels=model_cfg.get('out_chans', 1),
+                      width=model_cfg.get('width', 64),
+                      level=model_cfg.get('level', 3),
+                      dummy_data=dummy).to(device)
     elif model_name in ['wavelet', 'wavelet2d', 'wavelet_transformer2d']:
-        patch_size = model_cfg.get('patch_size', (4, 4))
+        patch_size = model_cfg.get('patch_size', None)
         if isinstance(patch_size, list):
             patch_size = tuple(patch_size)
         model = WaveletTransformer2D(
@@ -123,20 +133,52 @@ def main():
             patch_stride=model_cfg.get('patch_stride', 2),
             learnable_scaling_factor=model_cfg.get('learnable_scaling_factor', False),
         ).to(device)
-    elif model_name == 'wno':
-        dummy = torch.zeros(1, 1, S, S, device=device)
-        model = WNO2d(in_channels=model_cfg.get('in_chans', 3),
-                      out_channels=model_cfg.get('out_chans', 1),
-                      width=model_cfg.get('width', 64),
-                      level=model_cfg.get('level', 4),
-                      dummy_data=dummy).to(device)
+    elif model_name in ['inner_wavelet', 'inner_wavelet2d', 'inner_wavelet_transformer2d']:
+        
+        model = InnerWaveletTransformer2D(
+            wave=model_cfg.get('wave', 'haar'),
+            input_dim=model_cfg.get('in_chans', 3),  # expecting u with grid concatenated
+            output_dim=model_cfg.get('out_chans', 1),
+            dim=model_cfg.get('dim', 128),
+            n_layers=model_cfg.get('n_layers', 5),
+            patch_size= model_cfg.get('patch_size', None),
+        ).to(device)
+    elif model_name in ['multiscale_wavelet', 'multiscale_wavelet2d', 'multiscale_wavelet_transformer2d']:
+        model = MultiscaleWaveletTransformer2D(
+            wave=model_cfg.get('wave', 'haar'),
+            input_dim=model_cfg.get('in_chans', 3),
+            output_dim=model_cfg.get('out_chans', 1),
+            dim=model_cfg.get('dim', 128),
+            n_layers=model_cfg.get('n_layers', 5),
+            patch_size= model_cfg.get('patch_size', None),
+        ).to(device)
+    elif model_name in ['saot', 'saot2d']:
+        model = SAOTModel(space_dim=model_cfg.get('space_dim', 2),
+                        n_layers=model_cfg.get('n_layers', 3),
+                        n_hidden=model_cfg.get('n_hidden', 64)  ,
+                        dropout=model_cfg.get('dropout', 0.0),
+                        n_head=model_cfg.get('n_head', 4),
+                        Time_Input=model_cfg.get('Time_Input', False),
+                        mlp_ratio=model_cfg.get('mlp_ratio', 1),
+                        fun_dim=model_cfg.get('fun_dim', 1),
+                        out_dim=model_cfg.get('out_dim', 1),
+                        H = S_data,
+                        W = S_data,
+                        slice_num=model_cfg.get('slice_num', 32),
+                        ref=model_cfg.get('ref', 8),
+                        unified_pos=model_cfg.get('unified_pos', 0),
+                        is_filter=model_cfg.get('is_filter', True)).to(device)
     else:
         model = FNO2d(modes1=model_cfg['modes1'],
                       modes2=model_cfg['modes2'],
                       fc_dim=model_cfg['fc_dim'],
                       layers=model_cfg['layers'],
                       act=model_cfg['act'],
-                      pad_ratio=model_cfg.get('pad_ratio', [0., 0.])).to(device)
+                    #   pad_ratio=model_cfg.get('pad_ratio', [0., 0.])
+                      ).to(device)
+    print('model structure: ', model)
+
+    print("total number of parameters: ", sum(p.numel() for p in model.parameters()))
 
     base_ckpt_root = '/scratch3/wan410/operator_learning_model/pino_ns2d/checkpoints'
     train_cfg = config.get('train', {})
@@ -227,5 +269,5 @@ def main():
                 print(f'Warning: failed to create spectral energy plot at T={t_raw}: {exc}')
 
 
-if __name__ == '__main__':
-    main()
+# if __name__ == '__main__':
+#     main()
