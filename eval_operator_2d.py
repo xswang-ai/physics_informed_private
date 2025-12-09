@@ -182,7 +182,7 @@ def main():
     print("total number of parameters: ", sum(p.numel() for p in model.parameters()))
 
 
-    ckpt_path = config.get('test', {}).get('ckpt')
+    ckpt_path = os.path.join(config.get('test', {}).get('load_dir'), config.get('test', {}).get('ckpt'))
     if os.path.exists(ckpt_path):
         ckpt = torch.load(ckpt_path, map_location=device)
         model.load_state_dict(ckpt['model'])
@@ -195,13 +195,10 @@ def main():
     print(f'Relative L2 over rollout: {l2:.6f}')
 
 
-    exit(-1)
+    
     # Save prediction and energy plots for the first example
     if example['truth'] is not None:
-        plot_dir = config.get('log', {}).get(
-            'plot_dir',
-            os.path.join(base_ckpt_root, train_cfg.get('save_dir', 'default'), 'eval_plots')
-        )
+        plot_dir = config.get('test', {}).get('plot_dir')
         pred_dir = os.path.join(plot_dir, 'saved_plots', 'predictions')
         spec_dir = os.path.join(plot_dir, 'saved_plots', 'energy')
         os.makedirs(pred_dir, exist_ok=True)
