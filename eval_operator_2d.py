@@ -41,6 +41,7 @@ def load_ns_sequences(data_config):
         # data1 = NSLoader2D.extract(data1)
         sub_t = int(1//t_interval)
         data1 = data1[:, ::sub_t, ...]
+        print("data1 shape: ", data1.shape)
         
     part1 = data1.permute(0, 2, 3, 1)  # (N, X, Y, T)
     data = part1
