@@ -20,7 +20,7 @@ model:
   n_layers: 4
   in_chans: 3    # u plus (x,y) grid concatenated in train loop
   out_chans: 1
-  use_efficient_attention: False
+  use_efficient_attention: True
   efficient_layers: [0, 1, 2]
 
 train:
