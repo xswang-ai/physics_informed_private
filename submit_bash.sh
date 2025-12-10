@@ -1,7 +1,7 @@
 #!/bin/bash
 
 
-#SBATCH --time=0:20:00           # Increased time for longer training with larger batches
+#SBATCH --time=02:00:00           # Increased time for longer training with larger batches
 
 #SBATCH --mem=256gb
 #SBATCH --nodes=1
@@ -67,7 +67,7 @@ export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
 ######################################################## TRAINING 3D ##################################################################
 
-python3 train_operator.py --config_path configs/pretrain/Customized-Re500-FNO3d-1s-100.yaml --test_ratio 0.25
+python3 train_operator.py --config_path configs/pretrain/Customized-Re500-FNO3d-1s-100.yaml --test_ratio 0.25 --batch_size 100
 
 
 #################################################################################################################################
