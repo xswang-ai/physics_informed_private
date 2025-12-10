@@ -225,9 +225,9 @@ def get_fixed_test_pair3d(model, test_source, device, sample_idx=0):
     sample = base_ds[sample_idx]
     x = sample[0].to(device)
     y = sample[1].to(device)
-    print("x shape: ", x.shape, "y shape: ", y.shape)
+    # print("x shape: ", x.shape, "y shape: ", y.shape)
     with torch.no_grad():
         pred = model(x.unsqueeze(0))
-        print("pred shape: ", pred.shape)
-        y = y[..., 1:].unsqueeze(0)
-    return pred, y
+        # print("pred shape: ", pred.shape)
+        y = y.unsqueeze(0)
+    return pred[..., 1:, :], y.unsqueeze(-1)
