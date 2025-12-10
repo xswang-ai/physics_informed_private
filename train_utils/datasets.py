@@ -153,7 +153,7 @@ class NSLoader(object):
 
     def make_loader(self, n_sample, batch_size, start=0, train=True):
         if train:
-            a_data = self.data[start:start + n_sample, :, :, 0].reshape(n_sample, self.S, self.S)
+            a_data = self.data[start:start + n_sample, :, :, 0].reshape(n_sample, self.S, self.S) # the first time step
             u_data = self.data[start:start + n_sample].reshape(n_sample, self.S, self.S, self.T)
         else:
             a_data = self.data[-n_sample:, :, :, 0].reshape(n_sample, self.S, self.S)

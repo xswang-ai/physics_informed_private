@@ -169,25 +169,14 @@ def mixed_train(model,              # model of neural operator
             x, y = x.to(device), y.to(device)
             batch_size = x.shape[0]
             optimizer.zero_grad()
-            
-            print("x shape: ", x.shape, "y shape: ", y.shape, "batch_size: ", batch_size)
-            
-            exit(-1)
             # print("x shape: ", x.shape, "y shape: ", y.shape, "batch_size: ", batch_size)
-            x_in = F.pad(x, (0, 0, 0, 5), "constant", 0)
-            # print("x_in shape: ", x_in.shape)
-            out = model(x_in)
+            out = model(x)
             # print("out shape: ", out.shape)
-            out = out.reshape(batch_size, S1, S1, T1 + 5)
+            out = out.reshape(batch_size, S1, S1, T1)
             # print("x_in shape: ", x_in.shape, "out shape: ", out.shape, "S1: ", S1, "T1: ", T1)
-            out = out[..., :-5]
-            x = x[:, :, :, 0, -1]
-            
-            
-            
-            
-            loss_l2 = myloss(out.view(batch_size, S1, S1, T1),
-                             y.view(batch_size, S1, S1, T1))
+            out = out[..., 1:] # from one step ahead to the last step
+            loss_l2 = myloss(out.view(batch_size, S1, S1, T1 - 1),
+                             y[..., 1:].view(batch_size, S1, S1, T1 - 1))
 
             total_loss = loss_l2 
             total_loss.backward()
@@ -204,7 +193,7 @@ def mixed_train(model,              # model of neural operator
             pbar.set_description(
                 (f'Data train loss: {train_loss:.5f}; Data l2 error: {test_l2:.5f}')
         )
-       
+        exit(-1)
         if ep % eval_step == 0 and test_loader is not None:
             test_l2, _, _ = evaluate_step_ahead(model, test_loader, device, grid)
             print(f'Random test split relative L2: {test_l2:.6f}')
