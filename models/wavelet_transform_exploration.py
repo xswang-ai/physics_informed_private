@@ -408,6 +408,62 @@ class MultiscaleWaveletTransformer2D(nn.Module):
 
 
 
+class MultiscaleWaveletTransformer3D(MultiscaleWaveletTransformer2D):
+    def __init__(self, temporal_depth=1, in_timesteps=1, **kwargs):
+        super().__init__(**kwargs)
+        self.in_timesteps = in_timesteps
+        self.embed_dim = self.output_proj[0].in_features
+        self.temporal_pos_embed = nn.Parameter(torch.randn(1, self.in_timesteps, self.embed_dim))
+        self.temporal_transformer = Transformer(
+            dim=self.embed_dim,
+            depth=temporal_depth,
+            heads=4,
+            dim_head=64,
+            mlp_dim=self.embed_dim * 2,
+        )
+
+    def forward(self, x):
+        # x: (B, H, W, T, C)
+        b, _, _, t, _ = x.shape
+        x = x[..., 0, :]
+
+        if self.add_grid:
+            x = torch.cat((x, self.get_grid(x)), dim=-1)
+
+        x = self.input_proj(x)
+        h, w = x.shape[1], x.shape[2]
+        x = rearrange(x, 'b h w c -> b (h w) c')
+
+        x_list = []
+        for attn_layer, down_layer in self.enc_layers:
+            x_list.append(rearrange(x, 'b (h w) c -> b c h w', h=h, w=w))
+            x = self.attention_block(x, attn_layer, h, w)
+            x, h, w = self.down_block(x, down_layer, h, w)
+
+        for up_layer, attn_layer in self.dec_layers:
+            x, h, w = self.up_block(x, x_list.pop(), up_layer, h, w)
+            x = self.attention_block(x, attn_layer, h, w)
+
+        tokens = x.shape[1]
+        temporal_tokens = x.new_zeros(b * tokens, t, self.embed_dim)
+        temporal_tokens[:, 0, :] = rearrange(x, 'b n d -> (b n) d')
+
+        temporal_pos = self.temporal_pos_embed
+        if temporal_pos.shape[1] < t:
+            temporal_pos = F.pad(temporal_pos, (0, 0, 0, t - temporal_pos.shape[1]))
+        else:
+            temporal_pos = temporal_pos[:, :t, :]
+        temporal_tokens = temporal_tokens + temporal_pos
+
+        temporal_tokens = self.temporal_transformer(temporal_tokens)
+        temporal_tokens = rearrange(temporal_tokens, '(b n) t d -> b n t d', b=b)
+
+        temporal_tokens = rearrange(temporal_tokens, 'b (h w) t d -> (b t) (h w) d', h=h, w=w)
+        temporal_tokens = self.output_proj(temporal_tokens)
+        out = rearrange(temporal_tokens, '(b t) (h w) c -> b h w t c', b=b, t=t, h=h, w=w)
+        return out
+
+
 
 
 if __name__ == "__main__":
