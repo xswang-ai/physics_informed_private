@@ -228,6 +228,6 @@ def get_fixed_test_pair3d(model, test_source, device, sample_idx=0):
 
     with torch.no_grad():
         pred = model(x.unsqueeze(0))
-        pred = pred[..., 1:]
+        print("pred shape: ", pred.shape)
         y = y[..., 1:].unsqueeze(0)
     return pred, y
