@@ -198,7 +198,7 @@ def mixed_train(model,              # model of neural operator
             if writer is not None:
                 writer.add_scalar('eval/test_l2', test_l2, ep + 1)
                 fixed_pred, fixed_target = get_fixed_test_pair3d(model, test_loader, device, sample_idx=0)
-                print("fixed_pred shape: ", fixed_pred.shape, "fixed_target shape: ", fixed_target.shape)
+                # print("fixed_pred shape: ", fixed_pred.shape, "fixed_target shape: ", fixed_target.shape)
                 if fixed_pred is not None:
                     for t_idx in [0, -1]:  
                        log_tensorboard_images_and_spectra(writer,
