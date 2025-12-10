@@ -112,11 +112,11 @@ def train_3d(args, config):
     # create model
     print(device)
     model_cfg = config['model']
-    arch = model_cfg.get('arch', 'fno').lower()
-    if arch in ['wavelet3d', 'wavelet_transformer3d', 'wavelet']:
+    model_name = model_cfg.get('name', 'fno2d').lower()
+    if model_name in ['wavelet3d', 'wavelet_transformer3d', 'wavelet']:
         patch_size = model_cfg.get('patch_size', (4, 4))
         patch_stride = model_cfg.get('patch_stride', 2)
-    elif arch in ['multiscale_wavelet3d', 'multiscale_wavelet_transformer3d', 'multiscale_wavelet']:
+    elif model_name in ['multiscale_wavelet3d', 'multiscale_wavelet_transformer3d', 'multiscale_wavelet']:
         model = MultiscaleWaveletTransformer3D(
             wave=model_cfg.get('wave', 'haar'),
             input_dim=model_cfg.get('in_chans', 3),
