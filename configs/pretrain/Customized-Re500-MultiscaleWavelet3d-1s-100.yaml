@@ -19,13 +19,13 @@ model:
   wave: haar
   n_layers: 4
   in_chans: 3    # u plus (x,y) grid concatenated in train loop
-  dim: 256
+  dim: 128
   out_chans: 1
   temporal_depth: 1
   in_timesteps: 1
 
 train:
-  batchsize: 100
+  batchsize: 1
   epochs: 100_001
   milestones: [20_000, 40_000, 60_000, 80_000]
   base_lr: 0.001
