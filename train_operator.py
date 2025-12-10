@@ -4,7 +4,8 @@ import math
 import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, random_split, TensorDataset
-
+from torch.utils.tensorboard import SummaryWriter
+import os
 from solver.random_fields import GaussianRF
 from train_utils import Adam
 from train_utils.datasets import NSLoader, online_loader, DarcyFlow, DarcyCombo
@@ -137,6 +138,13 @@ def train_3d(args, config):
     scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer,
                                                      milestones=config['train']['milestones'],
                                                      gamma=config['train']['scheduler_gamma'])
+
+    save_dir = config['train']['save_dir'] if torch.cuda.is_available() else 'saved_models'
+    tensorboard_dir = config['train'].get('tensorboard_dir')
+    if tensorboard_dir is None:
+        tensorboard_dir = os.path.join(save_dir, 'tensorboard')
+    os.makedirs(tensorboard_dir, exist_ok=True)
+    writer = SummaryWriter(log_dir=tensorboard_dir)
     mixed_train(model,
                 train_loader,
                 test_loader,
@@ -146,6 +154,7 @@ def train_3d(args, config):
                 scheduler,
                 config,
                 device,
+                writer=writer,
                 model_name=config['model']['name'])
 
     if test_loader is not None:
