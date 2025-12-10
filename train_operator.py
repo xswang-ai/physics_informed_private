@@ -145,7 +145,8 @@ def train_3d(args, config):
                 optimizer,
                 scheduler,
                 config,
-                device)
+                device,
+                model_name=config['model']['name'])
 
     if test_loader is not None:
         test_l2 = evaluate_3d(model, test_loader, device)

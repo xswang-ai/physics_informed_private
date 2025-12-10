@@ -212,3 +212,28 @@ def evaluate_steps_ahead(model, test_loader, device, S, T):
     if batches == 0:
         return None
     return total / batches, pred_plot, target_plot
+
+
+
+
+def get_fixed_test_pair3d(model, test_source, device, sample_idx=0):
+    """
+    Grab a deterministic (x_t, x_{t+1}) pair from the test data without relying on
+    the test loader's random timestep selection.
+    """
+    base_ds = test_source.dataset
+    if not hasattr(base_ds, 'data'):
+        return None, None
+    data = base_ds.data
+    if sample_idx >= data.shape[0]:
+        sample_idx = data.shape[0] - 1
+
+    sample = data[sample_idx]
+    x = sample[0].to(device)
+    y = sample[1].to(device)
+
+    with torch.no_grad():
+        pred = model(x.unsqueeze(0))
+        pred = pred[..., 1:]
+        y = y[..., 1:].unsqueeze(0)
+    return pred, y

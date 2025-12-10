@@ -71,7 +71,8 @@ def log_tensorboard_images_and_spectra(
     form: str,
     model_name: str,
     Lx: float = 2 * np.pi,
-    Ly: float = 2 * np.pi
+    Ly: float = 2 * np.pi,
+    t_idx: int = 0
 ):
     """Log prediction, target, error images and energy/enstrophy spectra to TensorBoard.
     
@@ -108,9 +109,9 @@ def log_tensorboard_images_and_spectra(
         target_img = _to_rgb_minmax(target_denorm[0, :, :, channel_idx])
         error_img = _to_rgb_minmax(pred_denorm[0, :, :, channel_idx] - target_denorm[0, :, :, channel_idx])
         
-        writer.add_image(f"pred/{channel_name}", pred_img, epoch)
-        writer.add_image(f"target/{channel_name}", target_img, epoch)
-        writer.add_image(f"error/{channel_name}", error_img, epoch)
+        writer.add_image(f"pred/{channel_name}/t{t_idx}", pred_img, epoch)
+        writer.add_image(f"target/{channel_name}/t{t_idx}", target_img, epoch)
+        writer.add_image(f"error/{channel_name}/t{t_idx}", error_img, epoch)
     
     # Compute and plot energy and enstrophy spectra
     # Supports both vorticity and velocity forms
@@ -151,7 +152,7 @@ def log_tensorboard_images_and_spectra(
             
             # Convert to tensor and add to TensorBoard
             energy_img = fig_to_tensorboard_image(fig_energy)
-            writer.add_image("spectra/energy_spectrum", energy_img, epoch)
+            writer.add_image("spectra/energy_spectrum/t{t_idx}", energy_img, epoch)
             
             # Create enstrophy spectrum plot
             fig_enstrophy, ax_enstrophy = plt.subplots(figsize=(10, 6))
@@ -168,7 +169,7 @@ def log_tensorboard_images_and_spectra(
             
             # Convert to tensor and add to TensorBoard
             enstrophy_img = fig_to_tensorboard_image(fig_enstrophy)
-            writer.add_image("spectra/enstrophy_spectrum", enstrophy_img, epoch)
+            writer.add_image("spectra/enstrophy_spectrum/t{t_idx}", enstrophy_img, epoch)
         except Exception as e:
             print(f"Warning: Failed to compute energy/enstrophy spectra: {e}")
             import traceback

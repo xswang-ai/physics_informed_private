@@ -15,6 +15,7 @@ data:
 
 
 model:
+  name: fno3d
   layers: [64, 64, 64, 64, 64]
   modes1: [8, 8, 8, 8]
   modes2: [8, 8, 8, 8]

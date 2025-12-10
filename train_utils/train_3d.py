@@ -6,7 +6,8 @@ from .utils import save_checkpoint
 from .losses import LpLoss, PINO_loss3d, get_forcing
 from .distributed import reduce_loss_dict
 from .data_utils import sample_data
-from .eval_3d import evaluate_steps_ahead
+from .eval_3d import evaluate_steps_ahead, get_fixed_test_pair3d
+from train_utils.plot_utils import log_tensorboard_images_and_spectra
 try:
     import wandb
 except ImportError:
@@ -143,7 +144,8 @@ def mixed_train(model,              # model of neural operator
                 use_tqdm=True,
                 writer=None,
                 eval_step=100,
-                save_step=1000):     # turn on tqdm
+                save_step=1000,
+                model_name='fno3d'):     # turn on tqdm
     
     # data parameters
     num_data_iter = config['train']['data_iter']
@@ -199,14 +201,17 @@ def mixed_train(model,              # model of neural operator
             print(f'Random test split relative L2: {test_l2:.6f}')
             if writer is not None:
                 writer.add_scalar('eval/test_l2', test_l2, ep + 1)
-                # fixed_pred, fixed_target = get_fixed_test_pair(model, test_loader, grid, device, sample_idx=0, t_idx=0)
-                # if fixed_pred is not None:
-                #     log_tensorboard_images_and_spectra(writer,
-                #                                        fixed_pred.unsqueeze(-1),
-                #                                        fixed_target.unsqueeze(-1),
-                #                                        ep + 1,
-                #                                        'vorticity',
-                #                                        model_name)
+                fixed_pred, fixed_target = get_fixed_test_pair3d(model, test_loader, device, sample_idx=0)
+
+                if fixed_pred is not None:
+                    for t_idx in [0, -1]:  
+                       log_tensorboard_images_and_spectra(writer,
+                                                       fixed_pred[..., t_idx].unsqueeze(-1),
+                                                       fixed_target[..., t_idx].unsqueeze(-1),
+                                                       ep + 1,
+                                                       'vorticity',
+                                                       model_name,
+                                                       t_idx=t_idx)
 
         if ep % save_step == 0 and ep > 0:
             save_checkpoint(config['train']['save_dir'],
