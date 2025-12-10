@@ -222,13 +222,7 @@ def get_fixed_test_pair3d(model, test_source, device, sample_idx=0):
     the test loader's random timestep selection.
     """
     base_ds = test_source.dataset
-    if not hasattr(base_ds, 'data'):
-        return None, None
-    data = base_ds.data
-    if sample_idx >= data.shape[0]:
-        sample_idx = data.shape[0] - 1
-
-    sample = data[sample_idx]
+    sample = base_ds[sample_idx]
     x = sample[0].to(device)
     y = sample[1].to(device)
 
