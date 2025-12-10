@@ -133,38 +133,20 @@ def train(model,
 
 def mixed_train(model,              # model of neural operator
                 train_loader,       # dataloader for training with data
+                test_loader,       # dataloader for testing
                 S1, T1,             # spacial and time dimension for training with data
-                a_loader,           # generator for  ICs
                 S2, T2,             # spacial and time dimension for training with equation only
                 optimizer,          # optimizer
                 scheduler,          # learning rate scheduler
                 config,             # configuration dict
                 device=torch.device('cpu'),
-                log=False,          # turn on the wandb
-                project='PINO-default', # project name
-                group='FDM',        # group name
-                tags=['Nan'],       # tags
-                use_tqdm=True):     # turn on tqdm
-    if wandb and log:
-        run = wandb.init(project=project,
-                         entity=config['log']['entity'],
-                         group=group,
-                         config=config,
-                         tags=tags, reinit=True,
-                         settings=wandb.Settings(start_method="fork"))
-
+                use_tqdm=True,
+                writer=None,
+                eval_step=100,
+                save_step=1000):     # turn on tqdm
+    
     # data parameters
-    v = 1 / config['data']['Re']
-    t_interval = config['data']['time_interval']
-    forcing_1 = get_forcing(S1).to(device)
-    forcing_2 = get_forcing(S2).to(device)
-    # training settings
-    # batch_size = config['train']['batchsize']
-    ic_weight = config['train']['ic_loss']
-    f_weight = config['train']['f_loss']
-    xy_weight = config['train']['xy_loss']
     num_data_iter = config['train']['data_iter']
-    num_eqn_iter = config['train']['eqn_iter']
 
     model.train()
     myloss = LpLoss(size_average=True)
@@ -179,18 +161,18 @@ def mixed_train(model,              # model of neural operator
     train_loader = sample_data(train_loader)
     for ep in pbar:
         model.train()
-        t1 = default_timer()
         train_loss = 0.0
-        train_ic = 0.0
-        train_f = 0.0
         test_l2 = 0.0
-        err_eqn = 0.0
         # train with data
         for _ in range(num_data_iter):
             x, y = next(train_loader)
             x, y = x.to(device), y.to(device)
             batch_size = x.shape[0]
             optimizer.zero_grad()
+            
+            print("x shape: ", x.shape, "y shape: ", y.shape, "batch_size: ", batch_size)
+            
+            exit(-1)
             # print("x shape: ", x.shape, "y shape: ", y.shape, "batch_size: ", batch_size)
             x_in = F.pad(x, (0, 0, 0, 5), "constant", 0)
             # print("x_in shape: ", x_in.shape)
@@ -200,83 +182,49 @@ def mixed_train(model,              # model of neural operator
             # print("x_in shape: ", x_in.shape, "out shape: ", out.shape, "S1: ", S1, "T1: ", T1)
             out = out[..., :-5]
             x = x[:, :, :, 0, -1]
+            
+            
+            
+            
             loss_l2 = myloss(out.view(batch_size, S1, S1, T1),
                              y.view(batch_size, S1, S1, T1))
 
-            if ic_weight != 0 or f_weight != 0:
-                loss_ic, loss_f = PINO_loss3d(out.view(batch_size, S1, S1, T1),
-                                              x, forcing_1,
-                                              v, t_interval)
-            else:
-                loss_ic, loss_f = zero, zero
-
-            total_loss = loss_l2 * xy_weight + loss_f * f_weight + loss_ic * ic_weight
-
+            total_loss = loss_l2 
             total_loss.backward()
             optimizer.step()
-
-            train_ic = loss_ic.item()
             test_l2 += loss_l2.item()
             train_loss += total_loss.item()
-            train_f += loss_f.item()
+        
         if num_data_iter != 0:
-            train_ic /= num_data_iter
-            train_f /= num_data_iter
-            train_loss /= num_data_iter
             test_l2 /= num_data_iter
-        # train with random ICs
-        for _ in range(num_eqn_iter):
-            new_a = next(a_loader)
-            new_a = new_a.to(device)
-            optimizer.zero_grad()
-            x_in = F.pad(new_a, (0, 0, 0, 5), "constant", 0)
-            out = model(x_in).reshape(batch_size, S2, S2, T2 + 5)
-            out = out[..., :-5]
-            new_a = new_a[:, :, :, 0, -1]
-            loss_ic, loss_f = PINO_loss3d(out.view(batch_size, S2, S2, T2),
-                                          new_a, forcing_2,
-                                          v, t_interval)
-            eqn_loss = loss_f * f_weight + loss_ic * ic_weight
-            eqn_loss.backward()
-            optimizer.step()
 
-            err_eqn += eqn_loss.item()
 
         scheduler.step()
-        t2 = default_timer()
-        if num_eqn_iter != 0:
-            err_eqn /= num_eqn_iter
         if use_tqdm:
             pbar.set_description(
-                (
-                    f'Data f error: {train_f:.5f}; Data ic l2 error: {train_ic:.5f}. '
-                    f'Data train loss: {train_loss:.5f}; Data l2 error: {test_l2:.5f}'
-                    f'Eqn loss: {err_eqn:.5f}'
-                )
-            )
-        if wandb and log:
-            wandb.log(
-                {
-                    'Data f error': train_f,
-                    'Data IC L2 error': train_ic,
-                    'Data train loss': train_loss,
-                    'Data L2 error': test_l2,
-                    'Random IC Train equation loss': err_eqn,
-                    'Time cost': t2 - t1
-                }
-            )
-        if (ep + 1) % save_interval == 0:
-            ckpt_name = f'{base_prefix}-ep{ep + 1}.pt'
+                (f'Data train loss: {train_loss:.5f}; Data l2 error: {test_l2:.5f}')
+        )
+       
+        if ep % eval_step == 0 and test_loader is not None:
+            test_l2, _, _ = evaluate_step_ahead(model, test_loader, device, grid)
+            print(f'Random test split relative L2: {test_l2:.6f}')
+            if writer is not None:
+                writer.add_scalar('eval/test_l2', test_l2, ep + 1)
+                fixed_pred, fixed_target = get_fixed_test_pair(model, test_loader, grid, device, sample_idx=0, t_idx=0)
+                if fixed_pred is not None:
+                    log_tensorboard_images_and_spectra(writer,
+                                                       fixed_pred.unsqueeze(-1),
+                                                       fixed_target.unsqueeze(-1),
+                                                       ep + 1,
+                                                       'vorticity',
+                                                       model_name)
+
+        if ep % save_step == 0 and ep > 0:
             save_checkpoint(config['train']['save_dir'],
-                            ckpt_name,
+                            config['train']['save_name'].replace('.pt', f'_{ep + 1}.pt'),
                             model, optimizer, scheduler)
 
-    save_checkpoint(config['train']['save_dir'],
-                    config['train']['save_name'],
-                    model, optimizer, scheduler)
-    if wandb and log:
-        run.finish()
-
+   
 
 def progressive_train(model,
                       loader, train_loader,
