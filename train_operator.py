@@ -67,18 +67,12 @@ def train_3d(args, config):
     if args.synthetic_samples > 0:
         full_dataset, S_data, T_data = build_synthetic_dataset(data_config, args.synthetic_samples)
     else:
-        if 'datapath2' in data_config:
-            loader = NSLoader(datapath1=data_config['datapath'], datapath2=data_config['datapath2'],
-                              nx=data_config['nx'], nt=data_config['nt'],
-                              sub=data_config['sub'], sub_t=data_config['sub_t'],
-                              N=data_config['total_num'],
-                              t_interval=data_config['time_interval'])
-        else:
-            loader = NSLoader(datapath1=data_config['datapath'],
-                              nx=data_config['nx'], nt=data_config['nt'],
-                              sub=data_config['sub'], sub_t=data_config['sub_t'],
-                              N=data_config['total_num'],
-                              t_interval=data_config['time_interval'])
+
+        loader = NSLoader(datapath1=data_config['datapath'],
+                            nx=data_config['nx'], nt=data_config['nt'],
+                            sub=data_config['sub'], sub_t=data_config['sub_t'],
+                            N=data_config['total_num'],
+                            t_interval=data_config['time_interval'])
 
         # Build dataset and (optionally) split out a random test set
         full_dataset = loader.make_dataset(data_config['n_sample'],
@@ -121,20 +115,7 @@ def train_3d(args, config):
     if arch in ['wavelet3d', 'wavelet_transformer3d', 'wavelet']:
         patch_size = model_cfg.get('patch_size', (4, 4))
         patch_stride = model_cfg.get('patch_stride', 2)
-        if isinstance(patch_size, list):
-            patch_size = tuple(patch_size)
-        model = WaveletTransformer3D(
-            wave=model_cfg.get('wave', 'haar'),
-            in_chans=model_cfg.get('in_chans', 4),
-            out_chans=model_cfg.get('out_chans', 1),
-            in_timesteps=T_data + 5,
-            dim=model_cfg.get('dim', 128),
-            depth=model_cfg.get('depth', 4),
-            temporal_depth=model_cfg.get('temporal_depth', 2),
-            patch_size=patch_size,
-            patch_stride=patch_stride,
-            learnable_scaling_factor=model_cfg.get('learnable_scaling_factor', False),
-        ).to(device)
+        
         print("total number of parameters:", model.count_parameters())
     else:
         model = FNO3d(modes1=model_cfg['modes1'],
@@ -158,16 +139,13 @@ def train_3d(args, config):
                                                      gamma=config['train']['scheduler_gamma'])
     mixed_train(model,
                 train_loader,
+                test_loader,
                 S_data, T_data,
-                a_loader,
                 s2, t2,
                 optimizer,
                 scheduler,
                 config,
-                device,
-                log=args.log,
-                project=config['log']['project'],
-                group=config['log']['group'])
+                device)
 
     if test_loader is not None:
         test_l2 = evaluate_3d(model, test_loader, device)
