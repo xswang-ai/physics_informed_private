@@ -312,6 +312,8 @@ def train_3d(args, config):
             dim=model_cfg.get('dim', 128),
             n_layers=model_cfg.get('n_layers', 5),
             patch_size= model_cfg.get('patch_size', None),
+            use_efficient_attention=model_cfg.get('use_efficient_attention', False),
+            efficient_layers=model_cfg.get('efficient_layers', [0, 1, 2]),
         ).to(device)
     elif model_name in ['saot', 'saot2d']:
         model = SAOTModel(space_dim=model_cfg.get('space_dim', 2),
