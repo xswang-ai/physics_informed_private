@@ -14,7 +14,7 @@ from train_utils.train_2d import train_2d_operator
 from train_utils.losses import LpLoss
 from train_utils.utils import get_grid3d
 from models import FNO3d, FNO2d
-from models.wavelet_transform_exploration import WaveletTransformer3D
+from models.wavelet_transform_exploration import WaveletTransformer3D, MultiscaleWaveletTransformer3D
 
 
 def evaluate_3d(model, test_loader, device):
@@ -116,7 +116,17 @@ def train_3d(args, config):
     if arch in ['wavelet3d', 'wavelet_transformer3d', 'wavelet']:
         patch_size = model_cfg.get('patch_size', (4, 4))
         patch_stride = model_cfg.get('patch_stride', 2)
-        
+    elif arch in ['multiscale_wavelet3d', 'multiscale_wavelet_transformer3d', 'multiscale_wavelet']:
+        model = MultiscaleWaveletTransformer3D(
+            wave=model_cfg.get('wave', 'haar'),
+            input_dim=model_cfg.get('in_chans', 3),
+            output_dim=model_cfg.get('out_chans', 1),
+            dim=model_cfg.get('dim', 128),
+            n_layers=model_cfg.get('n_layers', 5),
+            patch_size= model_cfg.get('patch_size', None),
+            temporal_depth=model_cfg.get('temporal_depth', 1),
+            in_timesteps=model_cfg.get('in_timesteps', 1),
+        ).to(device)
         print("total number of parameters:", model.count_parameters())
     else:
         model = FNO3d(modes1=model_cfg['modes1'],
