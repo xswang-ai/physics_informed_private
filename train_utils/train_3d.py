@@ -164,7 +164,6 @@ def mixed_train(model,              # model of neural operator
     for ep in pbar:
         model.train()
         train_loss = 0.0
-        test_l2 = 0.0
         # train with data
         for _ in range(num_data_iter):
             x, y = next(train_loader)
@@ -179,22 +178,19 @@ def mixed_train(model,              # model of neural operator
             out = out[..., 1:] # from one step ahead to the last step
             loss_l2 = myloss(out.view(batch_size, S1, S1, T1 - 1),
                              y[..., 1:].view(batch_size, S1, S1, T1 - 1))
-
-            total_loss = loss_l2 
-            total_loss.backward()
+            loss_l2.backward()
             optimizer.step()
-            test_l2 += loss_l2.item()
-            train_loss += total_loss.item()
+            train_loss += loss_l2.item()
         
-        if num_data_iter != 0:
-            test_l2 /= num_data_iter
-
+        train_loss /= num_data_iter
 
         scheduler.step()
         if use_tqdm:
             pbar.set_description(
-                (f'Data train loss: {train_loss:.5f}; Data l2 error: {test_l2:.5f}')
+                (f'Data train l2 loss: {train_loss:.5f}')
         )
+        if writer is not None:
+            writer.add_scalar('train/l2', train_loss, ep + 1)
         # exit(-1)
         if ep % eval_step == 0 and test_loader is not None:
             test_l2, _, _ = evaluate_steps_ahead(model, test_loader, device, S1, T1)
@@ -202,7 +198,7 @@ def mixed_train(model,              # model of neural operator
             if writer is not None:
                 writer.add_scalar('eval/test_l2', test_l2, ep + 1)
                 fixed_pred, fixed_target = get_fixed_test_pair3d(model, test_loader, device, sample_idx=0)
-
+                print("fixed_pred shape: ", fixed_pred.shape, "fixed_target shape: ", fixed_target.shape)
                 if fixed_pred is not None:
                     for t_idx in [0, -1]:  
                        log_tensorboard_images_and_spectra(writer,
