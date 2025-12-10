@@ -67,7 +67,7 @@ export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
 ######################################################## TRAINING 3D ##################################################################
 
-python3 train_operator.py --config_path configs/pretrain/Customized-Re500-FNO3d-1s-100.yaml
+python3 train_operator.py --config_path configs/pretrain/Customized-Re500-FNO3d-1s-100.yaml --test_ratio 0.25
 
 
 #################################################################################################################################

@@ -195,7 +195,7 @@ def mixed_train(model,              # model of neural operator
         )
         # exit(-1)
         if ep % eval_step == 0 and test_loader is not None:
-            test_l2, _, _ = evaluate_steps_ahead(model, test_loader, device)
+            test_l2, _, _ = evaluate_steps_ahead(model, test_loader, device, S1, T1)
             print(f'Random test split relative L2: {test_l2:.6f}')
             if writer is not None:
                 writer.add_scalar('eval/test_l2', test_l2, ep + 1)

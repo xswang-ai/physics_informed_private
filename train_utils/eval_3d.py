@@ -186,7 +186,7 @@ def eval_ns(model,  # model
 
 
 
-def evaluate_steps_ahead(model, test_loader, device):
+def evaluate_steps_ahead(model, test_loader, device, S, T):
     """Evaluate one-step prediction u_t -> u_{t+1}."""
     lploss = LpLoss(size_average=True)
 
@@ -195,7 +195,6 @@ def evaluate_steps_ahead(model, test_loader, device):
     batches = 0
     pred_plot = None
     target_plot = None
-    S, T = test_loader.dataset.S, test_loader.dataset.T
     with torch.no_grad():
         for x, y in test_loader:
             x, y = x.to(device), y.to(device)
