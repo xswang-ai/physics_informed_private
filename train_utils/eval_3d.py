@@ -181,3 +181,35 @@ def eval_ns(model,  # model
                 }
             )
             run.finish()
+
+
+
+
+
+def evaluate_steps_ahead(model, test_loader, device):
+    """Evaluate one-step prediction u_t -> u_{t+1}."""
+    lploss = LpLoss(size_average=True)
+
+    model.eval()
+    total = 0.0
+    batches = 0
+    pred_plot = None
+    target_plot = None
+    S, T = test_loader.dataset.S, test_loader.dataset.T
+    with torch.no_grad():
+        for x, y in test_loader:
+            x, y = x.to(device), y.to(device)
+            batch = x.shape[0]
+            pred = model(x)
+            pred = pred.reshape(batch, S, S, -1)
+            y = y[..., :pred.shape[-1]]
+            pred = pred[..., 1:]
+            y = y[..., 1:]
+            total += lploss(pred, y).item()
+            if pred_plot is None:
+                pred_plot = pred.clone()
+                target_plot = y.clone()
+            batches += 1
+    if batches == 0:
+        return None
+    return total / batches, pred_plot, target_plot

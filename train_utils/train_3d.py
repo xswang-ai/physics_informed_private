@@ -6,7 +6,7 @@ from .utils import save_checkpoint
 from .losses import LpLoss, PINO_loss3d, get_forcing
 from .distributed import reduce_loss_dict
 from .data_utils import sample_data
-
+from .eval_3d import evaluate_steps_ahead
 try:
     import wandb
 except ImportError:
@@ -193,20 +193,20 @@ def mixed_train(model,              # model of neural operator
             pbar.set_description(
                 (f'Data train loss: {train_loss:.5f}; Data l2 error: {test_l2:.5f}')
         )
-        exit(-1)
+        # exit(-1)
         if ep % eval_step == 0 and test_loader is not None:
-            test_l2, _, _ = evaluate_step_ahead(model, test_loader, device, grid)
+            test_l2, _, _ = evaluate_steps_ahead(model, test_loader, device)
             print(f'Random test split relative L2: {test_l2:.6f}')
             if writer is not None:
                 writer.add_scalar('eval/test_l2', test_l2, ep + 1)
-                fixed_pred, fixed_target = get_fixed_test_pair(model, test_loader, grid, device, sample_idx=0, t_idx=0)
-                if fixed_pred is not None:
-                    log_tensorboard_images_and_spectra(writer,
-                                                       fixed_pred.unsqueeze(-1),
-                                                       fixed_target.unsqueeze(-1),
-                                                       ep + 1,
-                                                       'vorticity',
-                                                       model_name)
+                # fixed_pred, fixed_target = get_fixed_test_pair(model, test_loader, grid, device, sample_idx=0, t_idx=0)
+                # if fixed_pred is not None:
+                #     log_tensorboard_images_and_spectra(writer,
+                #                                        fixed_pred.unsqueeze(-1),
+                #                                        fixed_target.unsqueeze(-1),
+                #                                        ep + 1,
+                #                                        'vorticity',
+                #                                        model_name)
 
         if ep % save_step == 0 and ep > 0:
             save_checkpoint(config['train']['save_dir'],
