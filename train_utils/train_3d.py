@@ -202,8 +202,8 @@ def mixed_train(model,              # model of neural operator
                 if fixed_pred is not None:
                     for t_idx in [0, -1]:  
                        log_tensorboard_images_and_spectra(writer,
-                                                       fixed_pred[..., t_idx].unsqueeze(-1),
-                                                       fixed_target[..., t_idx].unsqueeze(-1),
+                                                       fixed_pred[..., t_idx, :],
+                                                       fixed_target[..., t_idx, :],
                                                        ep + 1,
                                                        'vorticity',
                                                        model_name,

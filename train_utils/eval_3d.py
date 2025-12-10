@@ -220,6 +220,7 @@ def get_fixed_test_pair3d(model, test_source, device, sample_idx=0):
     """
     Grab a deterministic (x_t, x_{t+1}) pair from the test data without relying on
     the test loader's random timestep selection.
+    return (N, S, S, T, C ), (N, S, S, T, C)
     """
     base_ds = test_source.dataset
     sample = base_ds[sample_idx]
