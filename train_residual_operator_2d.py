@@ -515,17 +515,18 @@ def train_3d(args, config):
     writer = SummaryWriter(log_dir=tensorboard_dir)
 
     grid = torch2dgrid(S_data, S_data)
-    # train_step_ahead(model,
-    #                     train_loader,
-    #                     optimizer,
-    #                     scheduler,
-    #                     config,
-    #                     device,
-    #                     grid,
-    #                     test_loader=test_loader,
-    #                     writer=writer,
-    #                     model_name=model_name,
-    #                     start_ep=start_ep)
+    print("Training step ahead operator...")
+    train_step_ahead(model,
+                        train_loader,
+                        optimizer,
+                        scheduler,
+                        config,
+                        device,
+                        grid,
+                        test_loader=test_loader,
+                        writer=writer,
+                        model_name=model_name,
+                        start_ep=start_ep)
     
 
     residual_model = deepcopy(model)
@@ -536,6 +537,7 @@ def train_3d(args, config):
     residual_scheduler = torch.optim.lr_scheduler.MultiStepLR(residual_optimizer,
                                                      milestones=config['train']['milestones'],
                                                      gamma=config['train']['scheduler_gamma'])
+    print("Training residual operator...")
     # first freeze the mean model
     model.eval()
     for p in model.parameters():
