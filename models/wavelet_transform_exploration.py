@@ -10,7 +10,7 @@ import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__)))
 from wavelet_transform import DWT_2D, IDWT_2D,  FeedForward,  Attention
-
+from einops import einsum
 
 
 class SingleScaleWaveletTransformer2D(nn.Module):
@@ -96,10 +96,10 @@ class SingleScaleWaveletTransformer2D(nn.Module):
 
 
 class RescalingLayer(nn.Module):
-    def __init__(self, trainable: bool = False):
+    def __init__(self, dim, trainable: bool = False):
         super().__init__()
-        self.scale = nn.Parameter(torch.ones(4), requires_grad=trainable)
-        self.bias = nn.Parameter(torch.zeros(4), requires_grad=trainable)
+        self.scale = nn.Parameter(torch.ones(dim, dim), requires_grad=trainable)
+        self.bias = nn.Parameter(torch.zeros(dim), requires_grad=trainable)
 
     def set_trainable(self, trainable: bool):
         # Toggle grads without recreating the parameters so weights are reused.
@@ -107,11 +107,8 @@ class RescalingLayer(nn.Module):
         self.bias.requires_grad = trainable
 
     def forward(self, x):
-        x = rearrange(x, 'b (c k) h w -> b c k h w', k=4)
-        scale = self.scale.reshape(1, 1, 4, 1, 1)
-        bias = self.bias.reshape(1, 1, 4, 1, 1)
-        x = x * scale + bias
-        x = rearrange(x, 'b c k h w -> b (c k) h w')
+        x = torch.einsum("b c h w, c d -> b d h w", x, self.scale)
+        x = x + self.bias.reshape(1, -1, 1, 1)
         return x
 
 class WaveletAttentionBlock(nn.Module):
@@ -128,7 +125,7 @@ class WaveletAttentionBlock(nn.Module):
         self.idwt = IDWT_2D(wave)
         self.rescaling = rescaling
         if rescaling:
-            self.rescaling_layer = RescalingLayer()
+            self.rescaling_layer = RescalingLayer(dim)
         else:
             self.rescaling_layer = None
         self.attention = Attention(dim)
@@ -208,7 +205,7 @@ class MultiscaleWaveletTransformer2D(nn.Module):
                 nn.Linear(dim, dim//4),
                 nn.LayerNorm(dim//4),
                 DWT_2D(wave), 
-                RescalingLayer(),
+                RescalingLayer(dim),
                 nn.Conv2d(dim, dims[i+1] if i < self.n_layers - 1 else dim, kernel_size=3, padding=1, stride=1, groups=1),
             ])
                 
@@ -222,7 +219,7 @@ class MultiscaleWaveletTransformer2D(nn.Module):
             up_layer = nn.ModuleList([
                 nn.Linear(dim, dim*4),
                 nn.LayerNorm(dim*4),
-                RescalingLayer(),
+                RescalingLayer(dim),
                 IDWT_2D(wave),
                 nn.Conv2d(2*dim, new_dim, kernel_size=3, padding=1, stride=1, groups=1),
                 ])
