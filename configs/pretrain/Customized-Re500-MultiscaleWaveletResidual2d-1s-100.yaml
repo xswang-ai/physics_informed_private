@@ -26,15 +26,15 @@ model:
 
 train:
   batchsize: 100
-  epochs: 100_001
-  milestones: [20_000, 40_000, 60_000, 80_000]
+  epochs: 100_1
+  milestones: [20_0, 40_0, 60_0, 80_0]
   base_lr: 0.001
   scheduler_gamma: 0.5
   ic_loss: 0.0
   f_loss: 0.0
   xy_loss: 1.0
-  save_dir: /scratch3/wan410/operator_learning_model/Re500-MultiscaleWavelet2d-1s-100-efficient/
-  save_name: MultiscaleWavelet2d-Re500-1s-100.pt
+  save_dir: /scratch3/wan410/operator_learning_model/Re500-MultiscaleWaveletResidual2d-1s-100/
+  save_name: MultiscaleWaveletResidual2d-Re500-1s-100.pt
   data_iter: 1
   eqn_iter: 0
 
