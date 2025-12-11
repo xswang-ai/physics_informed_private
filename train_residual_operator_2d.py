@@ -70,6 +70,35 @@ def evaluate_step_ahead(model, test_loader, device, grid):
         return None
     return total / batches, pred_plot, target_plot
 
+def evaluate_residual_step_ahead(model, mean_model, test_loader, device, grid):
+    """Evaluate one-step prediction u_t -> u_{t+1}."""
+    lploss = LpLoss(size_average=True)
+    model.eval()
+    mean_model.eval()
+    total = 0.0
+    batches = 0
+    with torch.no_grad():
+        for x, y in test_loader:
+            x, y = x.to(device), y.to(device)
+            batch = x.shape[0]
+            x_in = torch.cat((x.unsqueeze(-1), grid.expand(batch, -1, -1, -1)), dim=-1)
+            y_base = mean_model(x_in)
+            if y_base.dim() == 5:
+                y_base = y_base.squeeze(-2)
+            if y_base.dim() == 4:
+                y_base = y_base.squeeze(-1)
+            y_target = (y - y_base).detach()
+            pred = model(x_in)
+            if pred.dim() == 5:
+                pred = pred.squeeze(-2)
+            if pred.dim() == 4:
+                pred = pred.squeeze(-1)
+            total += lploss(pred, y_target).item()
+            batches += 1
+    if batches == 0:
+        return None
+    return total / batches
+
 
 def _get_base_dataset(ds):
     """Return the underlying dataset (unwrap Subset/DataLoader)."""
@@ -109,6 +138,41 @@ def get_fixed_test_pair(model, test_source, grid, device, sample_idx=0, t_idx=0)
             pred = pred.squeeze(-1)
     return pred, y.unsqueeze(0)
 
+
+def get_fixed_residual_test_pair(model, mean_model, test_source, grid, device, sample_idx=0, t_idx=0):
+    """
+    Grab a deterministic (x_t, x_{t+1}) pair from the test data without relying on
+    the test loader's random timestep selection.
+    """
+    base_ds = _get_base_dataset(test_source)
+    if not hasattr(base_ds, 'data'):
+        return None, None
+    data = base_ds.data
+    if sample_idx >= data.shape[0]:
+        sample_idx = data.shape[0] - 1
+    max_t = data.shape[-1] - 1
+    if max_t <= 0:
+        return None, None
+    t_idx = min(t_idx, max_t - 1)
+    sample = data[sample_idx]
+    x = sample[..., t_idx].to(device)
+    y = sample[..., t_idx + 1].to(device)
+    grid_b = grid.to(device)
+    x_in = torch.cat((x.unsqueeze(0).unsqueeze(-1), grid_b), dim=-1)
+    with torch.no_grad():
+        mean_model.eval()
+        y_base = mean_model(x_in)
+        if y_base.dim() == 5:
+            y_base = y_base.squeeze(-2)
+        if y_base.dim() == 4:
+            y_base = y_base.squeeze(-1)
+        y_target = (y - y_base).detach()
+    pred = model(x_in)
+    if pred.dim() == 5:
+        pred = pred.squeeze(-2)
+    if pred.dim() == 4:
+        pred = pred.squeeze(-1)
+    return pred, y_target.unsqueeze(0)
 
 def _parse_epoch_from_name(save_name, fname):
     """Infer epoch from fname given a canonical save_name."""
@@ -233,27 +297,27 @@ def train_step_ahead_residual(model, mean_model, train_loader, optimizer, schedu
         if writer is not None:
             writer.add_scalar('train/residual_l2', avg, ep + 1)
         
-        # if use_tqdm:
-        #     pbar.set_description((f'Train L2: {avg:.6f}'))
+        if use_tqdm:
+            pbar.set_description((f'Train Residual L2: {avg:.6f}'))
 
-        # if ep % eval_step == 0 and test_loader is not None:
-        #     test_l2, _, _ = evaluate_step_ahead(model, test_loader, device, grid)
-        #     print(f'Random test split relative L2: {test_l2:.6f}')
-        #     if writer is not None:
-        #         writer.add_scalar('eval/test_l2', test_l2, ep + 1)
-        #         fixed_pred, fixed_target = get_fixed_test_pair(model, test_loader, grid, device, sample_idx=0, t_idx=0)
-        #         if fixed_pred is not None:
-        #             log_tensorboard_images_and_spectra(writer,
-        #                                                fixed_pred.unsqueeze(-1),
-        #                                                fixed_target.unsqueeze(-1),
-        #                                                ep + 1,
-        #                                                'vorticity',
-        #                                                model_name)
+        if ep % eval_step == 0 and test_loader is not None:
+            test_l2 = evaluate_residual_step_ahead(model, mean_model, test_loader, device, grid)
+            print(f'Random test split relative L2: {test_l2:.6f}')
+            if writer is not None:
+                writer.add_scalar('eval/test_l2', test_l2, ep + 1)
+                fixed_pred, fixed_target = get_fixed_residual_test_pair(model, mean_model, test_loader, grid, device, sample_idx=0, t_idx=0)
+                if fixed_pred is not None:
+                    log_tensorboard_images_and_spectra(writer,
+                                                       fixed_pred.unsqueeze(-1),
+                                                       fixed_target.unsqueeze(-1),
+                                                       ep + 1,
+                                                       'vorticity',
+                                                       model_name)
 
-        # if ep % save_step == 0 and ep > 0:
-        #     save_checkpoint(config['train']['save_dir'],
-        #                     config['train']['save_name'].replace('.pt', f'_{ep + 1}.pt'),
-        #                     model, optimizer, scheduler)
+        if ep % save_step == 0 and ep > 0:
+            save_checkpoint(config['train']['save_dir'],
+                            config['train']['save_name'].replace('.pt', f'_{ep + 1}.pt'),
+                            model, optimizer, scheduler)
 
 
 def build_synthetic_dataset(data_config, n_samples, step_ahead=False):
