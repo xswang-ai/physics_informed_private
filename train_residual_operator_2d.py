@@ -533,7 +533,7 @@ def train_3d(args, config):
     residual_model.enable_residual_training()
     # create optimizer and learning rate scheduler
     residual_optimizer = Adam(residual_model.trainable_param_groups(), betas=(0.9, 0.999),
-                     lr=config['train']['base_lr'])
+                     lr=config['train']['base_lr']*10)
     residual_scheduler = torch.optim.lr_scheduler.MultiStepLR(residual_optimizer,
                                                      milestones=config['train']['milestones'],
                                                      gamma=config['train']['scheduler_gamma'])
