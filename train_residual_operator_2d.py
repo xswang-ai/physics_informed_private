@@ -208,7 +208,7 @@ def train_step_ahead_residual(model, mean_model, train_loader, optimizer, schedu
             with torch.no_grad():
                 mean_model.eval()
                 y_base = mean_model(x_in)
-                if pred.dim() == 5:
+                if y_base.dim() == 5:
                     y_base = y_base.squeeze(-2)
                 if y_base.dim() == 4:
                     y_base = y_base.squeeze(-1)
@@ -451,17 +451,17 @@ def train_3d(args, config):
     writer = SummaryWriter(log_dir=tensorboard_dir)
 
     grid = torch2dgrid(S_data, S_data)
-    train_step_ahead(model,
-                        train_loader,
-                        optimizer,
-                        scheduler,
-                        config,
-                        device,
-                        grid,
-                        test_loader=test_loader,
-                        writer=writer,
-                        model_name=model_name,
-                        start_ep=start_ep)
+    # train_step_ahead(model,
+    #                     train_loader,
+    #                     optimizer,
+    #                     scheduler,
+    #                     config,
+    #                     device,
+    #                     grid,
+    #                     test_loader=test_loader,
+    #                     writer=writer,
+    #                     model_name=model_name,
+    #                     start_ep=start_ep)
     
 
     residual_model = deepcopy(model)
