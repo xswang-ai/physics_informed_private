@@ -172,6 +172,8 @@ def get_fixed_residual_test_pair(model, mean_model, test_source, grid, device, s
         pred = pred.squeeze(-2)
     if pred.dim() == 4:
         pred = pred.squeeze(-1)
+    
+    print("pred.shape", pred.shape, "y_target.shape", y_target.shape)
     return pred, y_target.unsqueeze(0)
 
 def _parse_epoch_from_name(save_name, fname):
