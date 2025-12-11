@@ -219,7 +219,7 @@ class MultiscaleWaveletTransformer2D(nn.Module):
             up_layer = nn.ModuleList([
                 nn.Linear(dim, dim*4),
                 nn.LayerNorm(dim*4),
-                RescalingLayer(dim),
+                RescalingLayer(dim*4),
                 IDWT_2D(wave),
                 nn.Conv2d(2*dim, new_dim, kernel_size=3, padding=1, stride=1, groups=1),
                 ])

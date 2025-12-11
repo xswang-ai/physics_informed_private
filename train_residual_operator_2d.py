@@ -515,7 +515,7 @@ def train_3d(args, config):
     writer = SummaryWriter(log_dir=tensorboard_dir)
 
     grid = torch2dgrid(S_data, S_data)
-    print("Training step ahead operator...")
+    print("Training step ahead operator...", "total traininable parameters: ", sum(p.numel() for p in model.parameters() if p.requires_grad))
     train_step_ahead(model,
                         train_loader,
                         optimizer,
@@ -537,7 +537,7 @@ def train_3d(args, config):
     residual_scheduler = torch.optim.lr_scheduler.MultiStepLR(residual_optimizer,
                                                      milestones=config['train']['milestones'],
                                                      gamma=config['train']['scheduler_gamma'])
-    print("Training residual operator...")
+    print("Training residual operator...", "total traininable parameters: ", sum(p.numel() for p in residual_model.parameters() if p.requires_grad))
     # first freeze the mean model
     model.eval()
     for p in model.parameters():
