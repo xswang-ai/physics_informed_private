@@ -26,8 +26,8 @@ model:
 
 train:
   batchsize: 100
-  epochs: 100_1
-  milestones: [20_0, 40_0, 60_0, 80_0]
+  epochs: 100_001
+  milestones: [20_000, 40_000, 60_000, 80_000]
   base_lr: 0.001
   scheduler_gamma: 0.5
   ic_loss: 0.0
