@@ -592,7 +592,7 @@ class MSWT2DStableSoftControl(nn.Module):
         X0 = torch.fft.rfft2(x0, dim=(1, 2))  # (B,H,W//2+1,C) base spectrum
         
         # Easiest drop-in: take rfft2 of the model output and use its angle.
-        phase_sp, loggain_sp = out_spatial.split(X0.shape[-1], dim=-1)
+        phase_sp, loggain_sp = out_spatial.split(out_spatial.shape[-1]//2, dim=-1)
         
 
         # model the phase
@@ -683,6 +683,7 @@ def verify_energy_stability(model, x):
     x_pred_energy_list = []
     for t in range(10):
         x = model(x)
+        x = x[0] if isinstance(x, tuple) else x
         x_pred_energy_list.append(compute_energy(x))
     
     fig, ax = plt.subplots(1, 1)
@@ -699,10 +700,11 @@ if __name__ == "__main__":
 
     x = torch.randn(2, 64, 64, 3)
     # model = InnerWaveletTransformer2D(input_dim=3, output_dim=3, dim=256, n_layers=4, patch_size=4)
-    model = MSWT2DStableSoftControl(input_dim=3, output_dim=3,  n_layers=4, use_efficient_attention=True)
+    model = MSWT2DStableSoftControl(input_dim=3, output_dim=1,  n_layers=4, use_efficient_attention=True)
     print("number of parameters:", model.count_parameters())
     with torch.autograd.set_detect_anomaly(True):
         output = model(x)
+        output = output[0] if isinstance(output, tuple) else output
         print("output shape:", output.shape)
         loss = output.mean()
         loss.backward()
