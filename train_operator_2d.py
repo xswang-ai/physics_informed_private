@@ -14,7 +14,7 @@ from train_utils.datasets import NSLoader, online_loader, DarcyFlow, DarcyCombo,
 from train_utils.losses import LpLoss
 from train_utils.utils import get_grid3d, torch2dgrid, save_checkpoint
 from models import FNO3d, FNO2d
-from models.wavelet_transform_exploration import MSWT2DStable
+from models.wavelet_transform_exploration import MSWT2DStable, MSWT2DStableSoftControl
 from models.hfs import ResUNet
 from models.wno import WNO2d
 from models.saot import SAOTModel
@@ -127,6 +127,9 @@ def train_step_ahead(model, train_loader, optimizer, scheduler, config, device, 
     lploss = LpLoss(size_average=True)
     epochs = config['train']['epochs']
     grid = grid.to(device).unsqueeze(0)
+
+    lambda_amp_final = 1e-2    # good starting point
+    warmup_frac = 0.2          # first 20% epochs
     if start_ep >= epochs:
         print(f'start_ep ({start_ep}) >= epochs ({epochs}); skipping training loop.')
         return
@@ -138,16 +141,35 @@ def train_step_ahead(model, train_loader, optimizer, scheduler, config, device, 
         model.train()
         running = 0.0
         batches = 0
+
+        # linear warm-up
+        t = ep / max(1, epochs - 1)
+        if t < warmup_frac:
+            lambda_amp = 0.0
+        else:
+            ramp = (t - warmup_frac) / (1.0 - warmup_frac)
+            lambda_amp = lambda_amp_final * ramp
         for x, y in train_loader:
             x, y = x.to(device), y.to(device)
             batch = x.shape[0]
             x_in = torch.cat((x.unsqueeze(-1), grid.expand(batch, -1, -1, -1)), dim=-1)
             pred = model(x_in)
+            if isinstance(pred, tuple):
+                pred, x_reg = pred
+            else:
+                x_reg = None
             if pred.dim() == 5:
                 pred = pred.squeeze(-2)
             if pred.dim() == 4:
                 pred = pred.squeeze(-1)
-            loss = lploss(pred, y)
+        
+
+            data_loss = lploss(pred, y)
+            if x_reg is not None:
+                loss = data_loss + lambda_amp * x_reg
+            else:
+                loss = data_loss
+
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
@@ -317,6 +339,13 @@ def train_3d(args, config):
         ).to(device)
     elif model_name in ['mswt_stable2d']:
         model = MSWT2DStable(input_dim=model_cfg.get('in_chans', 3),
+                             output_dim=model_cfg.get('out_chans', 1),
+                             dim=model_cfg.get('dim', 128),
+                             n_layers=model_cfg.get('n_layers', 5),
+                             use_efficient_attention=model_cfg.get('use_efficient_attention', True),
+                             efficient_layers=model_cfg.get('efficient_layers', [0, 1, 2])).to(device)
+    elif model_name in ['mswt_stable_soft_control2d']:
+        model = MSWT2DStableSoftControl(input_dim=model_cfg.get('in_chans', 3),
                              output_dim=model_cfg.get('out_chans', 1),
                              dim=model_cfg.get('dim', 128),
                              n_layers=model_cfg.get('n_layers', 5),
