@@ -156,7 +156,7 @@ def train_step_ahead(model, train_loader, optimizer, scheduler, config, device, 
             pred = model(x_in)
             if isinstance(pred, tuple):
                 pred, x_reg = pred
-                print("pred shape:", pred.shape, "x_reg shape:", x_reg.shape)
+                # print("pred shape:", pred.shape, "x_reg shape:", x_reg.shape)
             else:
                 x_reg = None
             if pred.dim() == 5:
