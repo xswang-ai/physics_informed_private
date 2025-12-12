@@ -586,14 +586,14 @@ class MSWT2DStableSoftControl(nn.Module):
         # x0: (B,H,W,C) real
         B, H, W, C = x0.shape
         
-        if out_spatial.shape[-1] != C:
-            x0 = x0[..., :out_spatial.shape[-1]] # crop the grid part in the input
+        if out_spatial.shape[-1] != 2*C:
+            x0 = x0[..., :out_spatial.shape[-1]//2] # crop the grid part in the input
         
         X0 = torch.fft.rfft2(x0, dim=(1, 2))  # (B,H,W//2+1,C) base spectrum
         
         # Easiest drop-in: take rfft2 of the model output and use its angle.
         phase_sp, loggain_sp = out_spatial.split(out_spatial.shape[-1]//2, dim=-1)
-        print("phase_sp shape:", phase_sp.shape, "loggain_sp shape:", loggain_sp.shape)
+        # print("phase_sp shape:", phase_sp.shape, "loggain_sp shape:", loggain_sp.shape)
        
         # model the phase
         P = torch.fft.rfft2(phase_sp, dim=(1, 2))               # complex
