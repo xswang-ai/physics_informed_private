@@ -428,7 +428,8 @@ class MSWT2DStable(nn.Module):
         # compute fft of x_0
         # x0: (B,H,W,C) real
         B, H, W, C = x0.shape
-
+        if phi_spatial.shape[-1] != C:
+            x0 = x0[..., :phi_spatial.shape[-1]] # crop the grid part
         X0 = torch.fft.rfft2(x0, dim=(1, 2))  # (B,H,W//2+1,C) complex
 
         # Easiest drop-in: take rfft2 of the model output and use its angle.
