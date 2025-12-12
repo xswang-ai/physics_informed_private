@@ -592,9 +592,9 @@ class MSWT2DStableSoftControl(nn.Module):
         X0 = torch.fft.rfft2(x0, dim=(1, 2))  # (B,H,W//2+1,C) base spectrum
         
         # Easiest drop-in: take rfft2 of the model output and use its angle.
-        phase_sp, loggain_sp = out_spatial.split(out_spatial.shape[-1]//2, dim=-1)
-        
-
+        phase_sp, loggain_sp = out_spatial.split(2, dim=-1)
+        print("phase_sp shape:", phase_sp.shape, "loggain_sp shape:", loggain_sp.shape)
+       
         # model the phase
         P = torch.fft.rfft2(phase_sp, dim=(1, 2))               # complex
         phase = P / (P.abs() + eps)
