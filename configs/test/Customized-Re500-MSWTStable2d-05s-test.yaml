@@ -24,7 +24,7 @@ model:
 test:
   batchsize: 100
   load_dir: '/scratch3/wan410/operator_learning_model/Re500-MSWTStable2d-1s-100'
-  ckpt: 'MSWTStable2d-Re500-1s-100_10001.pt
+  ckpt: 'MSWTStable2d-Re500-1s-100.pt
   
 log:
   project: 'PINO-None'
