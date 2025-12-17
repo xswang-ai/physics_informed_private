@@ -587,10 +587,12 @@ class MSWT2DStableNormalizedEnergy(MSWT2DStable):
     def inverse_spectral_mapping(self, x_res, x0, eps=1e-6):
         
         # x0: (B,H,W,C) real
-        B, H, W, C = x0.shape
-        
-        x_res_total_norm = x_res.reshape(B, -1, C).norm(dim=1, keepdim=True) # (B, 1, C)
-        x_total_norm = x0.reshape(B, -1, C).norm(dim=1, keepdim=True) # (B, 1, C)
+        B, H, W, C_in = x0.shape
+        C_out = x_res.shape[-1]
+        if C_in != C_out:
+            x0 = x0[..., :C_out] # crop the grid part 
+        x_res_total_norm = x_res.reshape(B, -1, C_out).norm(dim=1, keepdim=True) # (B, 1, C)
+        x_total_norm = x0.reshape(B, -1, C_out).norm(dim=1, keepdim=True) # (B, 1, C)
         norm_factor = x_total_norm / (x_res_total_norm + eps)
         x_norm = x_res * norm_factor.unsqueeze(1) # (B, 1, 1, C)
         x = (1 - self.smooth_gamma) * x0 + self.smooth_gamma * x_norm
