@@ -1,0 +1,29 @@
+data:
+  nx: 16
+  nt: 8
+  sub: 1
+  sub_t: 1
+  time_interval: 1.0
+  shuffle: true
+
+model:
+  name: fno2d
+  modes1: [4, 4, 4, 4]
+  modes2: [4, 4, 4, 4]
+  layers: [16, 16, 16, 16, 16]
+  fc_dim: 32
+  act: gelu
+
+train:
+  mode: from_initial_time
+  batchsize: 2
+  epochs: 2
+  milestones: [1]
+  base_lr: 0.001
+  scheduler_gamma: 0.5
+  save_dir: "saved_models/"
+  save_name: "tmp_time_conditioned_sanity.pt"
+  warmup_steps: 3
+  warmup_time_idx: 1
+  time_encoding: normalized
+  fixed_eval_t_idx: 1

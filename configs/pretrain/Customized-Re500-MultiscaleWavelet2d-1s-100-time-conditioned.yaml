@@ -1,0 +1,47 @@
+data:
+  datapath: '/scratch3/wan410/operator_learning_data/pino_ns2d/NS_fft_Re500_T4000.npy'
+  name: NS2D
+  Re: 500
+  total_num: 4000
+  offset: 0
+  n_sample: 100
+  time_interval: 1
+  nx: 64
+  nt: 64
+  sub: 1
+  sub_t: 1
+  shuffle: True
+  S2: 64
+  T2: 65
+
+model:
+  name: multiscale_wavelet2d
+  wave: haar
+  n_layers: 4
+  in_chans: 4    # u plus (x,y) grid plus time concatenated in train loop
+  out_chans: 1
+  use_efficient_attention: True
+  efficient_layers: [0, 1, 2]
+  rescaling: False
+
+train:
+  batchsize: 100
+  mode: from_initial_time
+  epochs: 100_001
+  milestones: [20_000, 40_000, 60_000, 80_000]
+  base_lr: 0.001
+  scheduler_gamma: 0.5
+  ic_loss: 0.0
+  f_loss: 0.0
+  xy_loss: 1.0
+  save_dir: /scratch3/wan410/operator_learning_model/Re500-MultiscaleWavelet2d-1s-100-time-conditioned/
+  save_name: MultiscaleWavelet2d-Re500-1s-100-time-conditioned.pt
+  data_iter: 1
+  eqn_iter: 0
+  warmup_steps: 1000
+  warmup_time_idx: 1
+  time_encoding: normalized
+  fixed_eval_t_idx: 1
+
+
+
