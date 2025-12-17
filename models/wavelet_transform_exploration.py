@@ -336,6 +336,7 @@ class MSWT2DStable(nn.Module):
         self.n_layers = n_layers
         self.patch_size = patch_size
         dims = np.array([32, 64, 128, 256])*2
+        self.dims = dims
         if patch_size is None:
             self.input_proj = nn.Linear(input_dim, dims[0])
             self.output_proj = nn.Sequential(nn.Linear(dims[0], dims[0]//2),
@@ -478,110 +479,19 @@ class MSWT2DStable(nn.Module):
 
 
 
-class MSWT2DStableSoftControl(nn.Module):
+class MSWT2DStableSoftControl(MSWT2DStable):
     def __init__(self, wave='haar', input_dim=3, output_dim=3, dim=64, n_layers=5, use_efficient_attention=False,
                        efficient_layers=[0, 1], add_grid=False, patch_size=None, **kwargs):
-        super().__init__(**kwargs)
-        self.add_grid = add_grid
-        self.n_layers = n_layers
-        self.patch_size = patch_size
-        dims = np.array([32, 64, 128, 256])*2
-        if patch_size is None:
-            self.input_proj = nn.Linear(input_dim, dims[0])
-            self.output_proj = nn.Sequential(nn.Linear(dims[0], dims[0]//2),
+        super().__init__(wave=wave,  input_dim=input_dim,  dim=dim, n_layers=n_layers, use_efficient_attention=use_efficient_attention,
+        efficient_layers=efficient_layers, add_grid=add_grid, patch_size=patch_size, 
+        **kwargs)
+        dims = self.dims
+        self.output_proj = nn.Sequential(nn.Linear(dims[0], dims[0]//2),
                                             nn.GELU(),
                                             nn.Linear(dims[0]//2, output_dim*2))
-            self.initialize_output_proj() # initial phase ≈ 1 and amp ≈ 1
-
-        self.enc_layers = nn.ModuleList([])
-        self.use_efficient_attention = use_efficient_attention
-        for i in range(self.n_layers):
-            dim = dims[i]
-            efficient_flag = i in efficient_layers and self.use_efficient_attention
-            attn_layer = nn.ModuleList([
-                nn.LayerNorm(dim),
-                WaveletAttentionBlock(wave=wave, dim=dim, use_efficient_attention=efficient_flag),
-                nn.LayerNorm(dim),
-                FeedForward(dim, dim*4)
-                ])
-
-            down_layer = nn.ModuleList([
-                nn.Linear(dim, dim//4),
-                nn.LayerNorm(dim//4),
-                DWT_2D(wave), 
-                nn.Conv2d(dim, dims[i+1] if i < self.n_layers - 1 else dim, kernel_size=3, padding=1, stride=1, groups=1),
-            ])
-                
-            self.enc_layers.append(nn.ModuleList([attn_layer, down_layer]))
-        # self.norm = nn.LayerNorm(dim)
-        self.dec_layers = nn.ModuleList([])
-        for i in range(self.n_layers):
-            dim = dims[self.n_layers - i - 1]
-            new_dim = dims[self.n_layers - i - 2] if self.n_layers - i - 2 >= 0 else dim
-            efficient_flag = self.n_layers - i - 1 in efficient_layers and self.use_efficient_attention
-            up_layer = nn.ModuleList([
-                nn.Linear(dim, dim*4),
-                nn.LayerNorm(dim*4),
-                IDWT_2D(wave),
-                nn.Conv2d(2*dim, new_dim, kernel_size=3, padding=1, stride=1, groups=1),
-                ])
-                
-            attn_layer = nn.ModuleList([
-                nn.LayerNorm(new_dim),
-                WaveletAttentionBlock(wave=wave, dim=new_dim, use_efficient_attention=efficient_flag),
-                nn.LayerNorm(new_dim),
-                FeedForward(new_dim, new_dim*4)
-                ])
-            
-            self.dec_layers.append(nn.ModuleList([up_layer, attn_layer]))
-   
-    def initialize_output_proj(self):
-        last = self.output_proj[-1]               
-        nn.init.zeros_(last.weight)
-        if last.bias is not None:
-            nn.init.zeros_(last.bias)
 
 
-    def get_grid(self, x):
-        b, h, w, _ = x.shape
-        size_x, size_y = h, w
-        gridx = torch.tensor(np.linspace(0, 1, size_x), dtype=torch.float).to(x.device)
-        gridx = gridx.reshape(1, size_x, 1, 1).repeat([b, 1, size_y, 1]) 
-        gridy = torch.tensor(np.linspace(0, 1, size_y), dtype=torch.float).to(x.device)
-        gridy = gridy.reshape(1, 1, size_y, 1).repeat([b, size_x, 1, 1]) 
-        x_grid = torch.cat((gridx, gridy), dim=-1)
-
-        return x_grid
-
-    def attention_block(self, x, layer, h, w):
-        ln1, wavelet_block, ln2, ff = layer
-        x = wavelet_block(ln1(x), h, w) + x
-        x = ln2(ff(x)) + x
-        return x
-    
-    def down_block(self, x, layer, h, w):
-        linear, ln, dwt, conv = layer
-        x = ln(linear(x))
-        x = rearrange(x, 'b (h w) c -> b c h w', h=h, w=w)
-        x = dwt(x) # (B, 4xc//4, H/2, W/2)
-        x = conv(x)
-        h, w= x.shape[-2], x.shape[-1]
-        x = rearrange(x, 'b c h w -> b (h w) c')
-        return x, h, w
-    
-
-    def up_block(self, x, x_prev, layer, h, w):
-        linear, ln, idwt, conv = layer
-        x = ln(linear(x)) # (B, (H/2 x W/2), c*4)
-        x = rearrange(x, 'b (h w) c -> b c h w', h=h, w=w)
-        x = idwt(x) # (B, C, H, W)
-        x = torch.cat((x, x_prev), dim=1) # (B, 2C, H, W)
-        x = conv(x)
-        h, w= x.shape[-2], x.shape[-1]
-        x = rearrange(x, 'b c h w -> b (h w) c')
-        return x, h, w
-
-    def inverse_spectral_mapping(self, out_spatial, x0, amp_max=0.1, eps=1e-6):
+    def inverse_spectral_mapping(self, out_spatial, x0, amp_max=0.1, eps=1e-6, tol=0.5):
         # compute fft of x_0
         # x0: (B,H,W,C) real
         B, H, W, C = x0.shape
@@ -598,35 +508,30 @@ class MSWT2DStableSoftControl(nn.Module):
         # model the phase
         P = torch.fft.rfft2(phase_sp, dim=(1, 2))               # complex
         phase = P / (P.abs() + eps)
-    
+        
         # model the amplitude
         A = torch.fft.rfft2(loggain_sp, dim=(1, 2))
-        log_gain = A.real
-        
+        log_gain = A.real 
         # bound the gain to keep dynamics stable
         log_gain = amp_max * torch.tanh(log_gain/amp_max)
-        log_gain = log_gain - log_gain.mean(dim=(1,2,3), keepdim=True)
+
+        x_reg = torch.relu(log_gain.abs() - tol).pow(2).mean()
+        
         amp = torch.exp(log_gain)
         
 
-         # ---- enforce rfft boundary constraints (recommended) ----
-        # DC bin must be real -> phase = 1 there
+         # ---- boundary constraints on phase ----
         phase = phase.clone()
-        phase[:, 0, 0, :] = 1.0 + 0.0j
+        phase[:, 0, 0, :] = 1.0 + 0.0j                   # DC
 
-        # Nyquist column (W even) should be real
         if W % 2 == 0:
-            phase[:, :, -1, :] = phase[:, :, -1, :].real + 0.0j
+            phase[:, :, -1, :] = phase[:, :, -1, :].real + 0.0j  # Nyquist col
 
-        # Nyquist row (H even) at k_y=H/2 and k_x=0 should be real
         if H % 2 == 0:
-            phase[:, H // 2, 0, :] = phase[:, H // 2, 0, :].real + 0.0j
-                
+            phase[:, H//2, 0, :] = phase[:, H//2, 0, :].real + 0.0j  # Nyquist row @ kx=0
         
         X = X0 * amp * phase
         x = torch.fft.irfft2(X, s=(H, W), dim=(1, 2))               # (B,H,W,C) real
-
-        x_reg = (log_gain ** 2).mean()
         return x, x_reg
         
 
@@ -663,10 +568,6 @@ class MSWT2DStableSoftControl(nn.Module):
             return x, x_reg
         else:
             return x
-
-
-    def count_parameters(self):
-        return sum(p.numel() for p in self.parameters() if p.requires_grad)
 
 
 
