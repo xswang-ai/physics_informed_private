@@ -491,7 +491,7 @@ class MSWT2DStableSoftControl(MSWT2DStable):
                                             nn.Linear(dims[0]//2, output_dim*2))
 
 
-    def inverse_spectral_mapping(self, out_spatial, x0, amp_max=0.1, eps=1e-6, tol=0.5):
+    def inverse_spectral_mapping(self, out_spatial, x0, amp_max=0.1, eps=1e-6, tol=0.05):
         # compute fft of x_0
         # x0: (B,H,W,C) real
         B, H, W, C = x0.shape
