@@ -14,6 +14,7 @@ from train_utils.datasets import NSLoader, online_loader, DarcyFlow, DarcyCombo,
 from train_utils.losses import LpLoss
 from train_utils.utils import get_grid3d, torch2dgrid, save_checkpoint
 from models import FNO3d, FNO2d
+from models.wavelet_transform import MultiscaleWaveletTransformer2D
 from models.wavelet_transform_exploration import MSWT2DStable, MSWT2DStableSoftControl, MSWT2DStableNormalizedEnergy
 from models.hfs import ResUNet
 from models.wno import WNO2d
