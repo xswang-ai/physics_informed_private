@@ -15,6 +15,9 @@ import matplotlib.pyplot as plt
 import h5py
 from einops import rearrange, repeat
 from einops.layers.torch import Rearrange
+import os
+import sys
+sys.path.append(os.path.join(os.path.dirname(__file__)))
 from wavelet_utils import DWT_2D, IDWT_2D, Attention, FeedForward
 
 
