@@ -47,7 +47,7 @@ export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
 # python3 train_operator_2d.py --config_path configs/pretrain/Customized-Re500-MSWTStable2d-1s-100.yaml --test_ratio 0.25
 
-python3 train_operator_2d.py --config_path configs/pretrain/Customized-Re500-MSWTStableSoft2d-1s-100.yaml --test_ratio 0.25 --resume_training --resume_ckpt MSWTStableSoft2d-Re500-1s-100_17001.pt
+python3 train_operator_2d.py --config_path configs/pretrain/Customized-Re500-MSWTStableSoft2d-1s-100.yaml --test_ratio 0.25
 
 
 # python3 train_operator_2d.py --config_path configs/pretrain/Customized-Re500-InnerWaveletPatching2d-1s-100.yaml --test_ratio 0.25
