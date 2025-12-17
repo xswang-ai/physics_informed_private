@@ -570,6 +570,32 @@ class MSWT2DStableSoftControl(MSWT2DStable):
             return x
 
 
+class MSWT2DStableNormalizedEnergy(MSWT2DStable):
+    def __init__(self, wave='haar', input_dim=3, output_dim=3, dim=64, n_layers=5, use_efficient_attention=False,
+                       efficient_layers=[0, 1], add_grid=False, patch_size=None, **kwargs):
+        super().__init__(wave=wave,  input_dim=input_dim,  dim=dim, n_layers=n_layers, use_efficient_attention=use_efficient_attention,
+        efficient_layers=efficient_layers, add_grid=add_grid, patch_size=patch_size, 
+        **kwargs)
+        dims = self.dims
+        self.output_proj = nn.Sequential(nn.Linear(dims[0], dims[0]//2),
+                                            nn.GELU(),
+                                            nn.Linear(dims[0]//2, output_dim))
+
+        self.smooth_gamma = 0.1
+    
+
+    def inverse_spectral_mapping(self, x_res, x0, eps=1e-6):
+        
+        # x0: (B,H,W,C) real
+        B, H, W, C = x0.shape
+        
+        x_res_total_norm = x_res.reshape(B, -1, C).norm(dim=1, keepdim=True) # (B, 1, C)
+        x_total_norm = x0.reshape(B, -1, C).norm(dim=1, keepdim=True) # (B, 1, C)
+        norm_factor = x_total_norm / (x_res_total_norm + eps)
+        x_norm = x_res * norm_factor.unsqueeze(1) # (B, 1, 1, C)
+        x = (1 - self.smooth_gamma) * x0 + self.smooth_gamma * x_norm
+        return x
+
 
 def verify_energy_stability(model, x):
     import matplotlib.pyplot as plt
@@ -601,7 +627,8 @@ if __name__ == "__main__":
 
     x = torch.randn(2, 64, 64, 3)
     # model = InnerWaveletTransformer2D(input_dim=3, output_dim=3, dim=256, n_layers=4, patch_size=4)
-    model = MSWT2DStableSoftControl(input_dim=3, output_dim=1,  n_layers=4, use_efficient_attention=True)
+    # model = MSWT2DStableSoftControl(input_dim=3, output_dim=1,  n_layers=4, use_efficient_attention=True)
+    model = MSWT2DStableNormalizedEnergy(input_dim=3, output_dim=3,  n_layers=4, use_efficient_attention=True)
     print("number of parameters:", model.count_parameters())
     with torch.autograd.set_detect_anomaly(True):
         output = model(x)

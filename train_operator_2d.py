@@ -14,7 +14,7 @@ from train_utils.datasets import NSLoader, online_loader, DarcyFlow, DarcyCombo,
 from train_utils.losses import LpLoss
 from train_utils.utils import get_grid3d, torch2dgrid, save_checkpoint
 from models import FNO3d, FNO2d
-from models.wavelet_transform_exploration import MSWT2DStable, MSWT2DStableSoftControl
+from models.wavelet_transform_exploration import MSWT2DStable, MSWT2DStableSoftControl, MSWT2DStableNormalizedEnergy
 from models.hfs import ResUNet
 from models.wno import WNO2d
 from models.saot import SAOTModel
@@ -347,6 +347,13 @@ def train_3d(args, config):
                              efficient_layers=model_cfg.get('efficient_layers', [0, 1, 2])).to(device)
     elif model_name in ['mswt_stable_soft_control2d']:
         model = MSWT2DStableSoftControl(input_dim=model_cfg.get('in_chans', 3),
+                             output_dim=model_cfg.get('out_chans', 1),
+                             dim=model_cfg.get('dim', 128),
+                             n_layers=model_cfg.get('n_layers', 5),
+                             use_efficient_attention=model_cfg.get('use_efficient_attention', True),
+                             efficient_layers=model_cfg.get('efficient_layers', [0, 1, 2])).to(device)
+    elif model_name in ['mswt_stable_norm_energy2d']:
+        model = MSWT2DStableNormalizedEnergy(input_dim=model_cfg.get('in_chans', 3),
                              output_dim=model_cfg.get('out_chans', 1),
                              dim=model_cfg.get('dim', 128),
                              n_layers=model_cfg.get('n_layers', 5),
