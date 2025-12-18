@@ -20,20 +20,20 @@ model:
   n_layers: 4
   in_chans: 3    # u plus (x,y) grid concatenated in train loop
   out_chans: 1
-  use_efficient_attention: False
+  use_efficient_attention: True
+  efficient_layers: [0, 1, 2]
   rescaling: False
-
 
 train:
   batchsize: 100
-  epochs: 100_001
-  milestones: [20_000, 40_000, 60_000, 80_000]
+  epochs: 100000
+  milestones: [20000, 40000, 60000, 80000]
   base_lr: 0.001
   scheduler_gamma: 0.5
   ic_loss: 0.0
   f_loss: 0.0
   xy_loss: 1.0
-  save_dir: /scratch3/wan410/operator_learning_model/Re500-MultiscaleWavelet2d-1s-100/
+  save_dir: /scratch3/wan410/operator_learning_model/Re500-MultiscaleWavelet2d-1s-100-efficient/
   save_name: MultiscaleWavelet2d-Re500-1s-100.pt
   data_iter: 1
   eqn_iter: 0
