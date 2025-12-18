@@ -582,6 +582,7 @@ class MSWT2DStableNormalizedEnergy(MSWT2DStable):
                                             nn.Linear(dims[0]//2, output_dim))
 
         self.smooth_gamma = 0.1
+        # self.smooth_gamma = 0.02
     
 
     def inverse_spectral_mapping(self, x_res, x0, eps=1e-6):
