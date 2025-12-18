@@ -67,7 +67,7 @@ export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
 # python3 eval_operator_2d.py --config_path configs/test/Customized-Re500-WNO2d-05s-test.yaml
 
-# python3 eval_operator_2d.py --config_path configs/test/Customized-Re500-MultiscaleWavelet2d-05s-test.yaml
+python3 eval_operator_2d.py --config_path configs/test/Customized-Re500-MultiscaleWavelet2d-05s-test.yaml
 
 # python3 eval_operator_2d.py --config_path configs/test/Customized-Re500-InnerWavelet2d-05s-test.yaml
 
@@ -75,7 +75,7 @@ export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
 # python3 eval_operator_2d.py --config_path configs/test/Customized-Re500-MSWTStable2d-05s-test.yaml
 
-python3 eval_operator_2d.py --config_path configs/test/Customized-Re500-MSWTStableNormEnergy2d-05s-test.yaml
+# python3 eval_operator_2d.py --config_path configs/test/Customized-Re500-MSWTStableNormEnergy2d-05s-test.yaml
 ######################################################## TRAINING 3D ##################################################################
 
 # python3 train_operator.py --config_path configs/pretrain/Customized-Re500-FNO3d-1s-100.yaml --test_ratio 0.25

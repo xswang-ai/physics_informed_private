@@ -7,6 +7,7 @@ from torch.utils.data import DataLoader, TensorDataset
 from baselines import data
 from models import FNO3d, FNO2d
 from models.wavelet_transform_exploration import MSWT2DStable, MSWT2DStableNormalizedEnergy
+from models.wavelet_transform import MultiscaleWaveletTransformer2D
 from models.hfs import ResUNet
 from models.wno import WNO2d
 from models.saot import SAOTModel
@@ -164,6 +165,8 @@ def main():
             output_dim=model_cfg.get('out_chans', 1),
             dim=model_cfg.get('dim', 128),
             n_layers=model_cfg.get('n_layers', 5),
+            use_efficient_attention=model_cfg.get('use_efficient_attention', True),
+            efficient_layers=model_cfg.get('efficient_layers', [0, 1, 2]),
             patch_size= model_cfg.get('patch_size', None),
         ).to(device)
     elif model_name in ['saot', 'saot2d']:
