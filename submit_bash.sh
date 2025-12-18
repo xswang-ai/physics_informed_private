@@ -69,6 +69,8 @@ export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
 python3 eval_operator_2d.py --config_path configs/test/Customized-Re500-MultiscaleWavelet2d-05s-test.yaml
 
+# python3 eval_operator_2d.py --config_path configs/test/Customized-Re500-MSWTEfficient2d-05s-test.yaml
+
 # python3 eval_operator_2d.py --config_path configs/test/Customized-Re500-InnerWavelet2d-05s-test.yaml
 
 # # python3 eval_operator_2d.py --config_path configs/pretrain/Customized-Re500-WNO2d-1s-100.yaml
