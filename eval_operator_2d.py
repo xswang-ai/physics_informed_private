@@ -6,7 +6,7 @@ from torch.utils.data import DataLoader, TensorDataset
 
 from baselines import data
 from models import FNO3d, FNO2d
-from models.wavelet_transform_exploration import MSWT2DStable
+from models.wavelet_transform_exploration import MSWT2DStable, MSWT2DStableNormalizedEnergy
 from models.hfs import ResUNet
 from models.wno import WNO2d
 from models.saot import SAOTModel
@@ -126,6 +126,13 @@ def main():
                              dim=model_cfg.get('dim', 128),
                              n_layers=model_cfg.get('n_layers', 5),
                              use_efficient_attention=model_cfg.get('use_efficient_attention', True)).to(device)
+    elif model_name in ['mswt_stable_norm_energy2d']:
+        model = MSWT2DStableNormalizedEnergy(input_dim=model_cfg.get('in_chans', 3),
+                             output_dim=model_cfg.get('out_chans', 1),
+                             dim=model_cfg.get('dim', 128),
+                             n_layers=model_cfg.get('n_layers', 5),
+                             use_efficient_attention=model_cfg.get('use_efficient_attention', True),
+                             efficient_layers=model_cfg.get('efficient_layers', [0, 1, 2])).to(device)
     elif model_name in ['wavelet', 'wavelet2d', 'wavelet_transformer2d']:
         patch_size = model_cfg.get('patch_size', None)
         if isinstance(patch_size, list):

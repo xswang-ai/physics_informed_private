@@ -1,0 +1,33 @@
+data:
+  datapath: '/scratch3/wan410/operator_learning_data/pino_ns2d/NS_Re500_s256_T100_test.npy'
+  Re: 500
+  total_num: 100
+  offset: 0
+  n_sample: 100
+  time_interval: 0.5
+  nx: 256
+  nt: 128
+  sub: 4
+  sub_t: 1
+  shuffle: False
+
+model:
+  name: mswt_stable_norm_energy2d
+  wave: haar
+  n_layers: 4
+  in_chans: 3    # u plus (x,y) grid concatenated in train loop
+  out_chans: 1
+  use_efficient_attention: True
+  efficient_layers: [0, 1, 2]
+
+
+test:
+  batchsize: 100
+  load_dir: '/scratch3/wan410/operator_learning_model/Re500-MSWTStableNormEnergy2d-1s-100'
+  ckpt: 'MSWTStableNormEnergy2d-Re500-1s-100.pt'
+log:
+  project: 'PINO-None'
+  group: 'eval'
+
+
+
